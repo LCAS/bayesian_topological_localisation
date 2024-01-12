@@ -1,0 +1,10 @@
+float64 secs_from_now
+float64 prediction_rate
+bool return_history
+
+---
+
+bool success
+float64[] secs_from_now
+string[] estimated_node
+topological_navigation_msgs/DistributionStamped[] prob_dist
