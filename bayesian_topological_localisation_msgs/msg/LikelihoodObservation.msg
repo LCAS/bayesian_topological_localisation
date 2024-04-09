@@ -1,0 +1,2 @@
+bayesian_topological_localisation_msgs/DistributionStamped likelihood
+bool identifying

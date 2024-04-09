@@ -20,7 +20,7 @@ setup(
     tests_require=['pytest'],
     entry_points={
         'console_scripts': [
-            'localisation_node.py = bayesian_topological_localisation.scripts.localisation_node:main'
+            'localisation_node.py = bayesian_topological_localisation.localisation_node:main'
         ],
     },
 

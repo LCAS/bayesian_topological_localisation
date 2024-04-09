@@ -7,6 +7,7 @@
 
   <maintainer email="fdelduchetto@lincoln.ac.uk">Francesco Del Duchetto</maintainer>
   <maintainer email="jheselden@lincoln.ac.uk">James R Heselden</maintainer>
+  <maintainer email="nwagner@lincoln.ac.uk">Nikolaus Wagner</maintainer>
   
   <author email="fdelduchetto@lincoln.ac.uk">Francesco Del Duchetto</author>
 
@@ -17,11 +18,16 @@
   <test_depend>ament_pep257</test_depend>
   <test_depend>python3-pytest</test_depend>
 
-  <depend>geometry_msgs</depend>
-  <depend>std_msgs</depend>
+  <depend>ament_cmake</depend>
+
   <depend>visualization_msgs</depend>
   <depend>topological_navigation</depend>
-
+  <depend>builtin_interfaces</depend>
+  <depend>std_msgs</depend>
+  <depend>actionlib_msgs</depend>
+  <depend>action_msgs</depend>
+  <depend>geometry_msgs</depend>
+  
   <export>
     <build_type>ament_python</build_type>
   </export>

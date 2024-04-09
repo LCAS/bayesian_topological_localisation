@@ -1,8 +1,13 @@
-import numpy as np
+#!/usr/bin/env python3
+
 import threading
-import rospy
-import math
+
+import numpy as np
+
+import rclpy
+
 from bayesian_topological_localisation.particle import Particle
+
 
 class TopologicalParticleFilter():
     FOLLOW_OBS = 0      # use the distribution of the first observation
@@ -55,7 +60,7 @@ class TopologicalParticleFilter():
         # if to jump to only connected nodes 
         self.only_connected = False        
 
-        self.print_debug = True
+        self.print_debug = False
 
         self.reinit_jsd_threshold = reinit_jsd_threshold if reinit_jsd_threshold is not None else self.DEFAULT_REINIT_JSD_THRESHOLD
         self.unconnected_jump_threshold = unconnected_jump_threshold if unconnected_jump_threshold is not None else self.DEFAULT_UNCONNECTED_JUMP_THRESHOLD
