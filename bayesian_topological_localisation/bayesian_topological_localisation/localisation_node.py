@@ -2,21 +2,17 @@
 
 import rclpy
 from rclpy.node import Node
+from rclpy.qos import QoSDurabilityPolicy, QoSProfile
 import threading
+import time
 import numpy as np
 
 from bayesian_topological_localisation.particle_filter import TopologicalParticleFilter
 from bayesian_topological_localisation.prediction_model import PredictionModel
-from bayesian_topological_localisation_msgs.srv import *
-#  LocaliseAgent, LocaliseAgentRequest, \
-#  LocaliseAgentResponse, StopLocalise, StopLocaliseRequest, StopLocaliseResponse, \
-#  UpdatePoseObservation, UpdatePoseObservationRequest, UpdatePoseObservationResponse, \
-#  UpdateLikelihoodObservation, UpdateLikelihoodObservationRequest, UpdateLikelihoodObservationResponse, \
-#  UpdatePriorLikelihoodObservation, UpdatePriorLikelihoodObservationRequest, UpdatePriorLikelihoodObservationResponse, \
-#  Predict, PredictRequest, PredictResponse, SetFloat64, SetFloat64Request, SetFloat64Response
-from bayesian_topological_localisation_msgs.msg import *
-# DistributionStamped, PoseObservation, LikelihoodObservation, ParticlesState
-#from geometry_msgs.msg import PoseWithCovarianceStamped
+from bayesian_topological_localisation_msgs.srv import LocaliseAgent, StopLocalise, UpdatePoseObservation, \
+                                                       UpdateLikelihoodObservation,  UpdatePriorLikelihoodObservation, \
+                                                       Predict, SetFloat64
+from bayesian_topological_localisation_msgs.msg import DistributionStamped, PoseObservation, LikelihoodObservation, ParticlesState
 from visualization_msgs.msg import Marker, MarkerArray
 from topological_navigation_msgs.msg import TopologicalMap
 from std_msgs.msg import String
@@ -61,11 +57,14 @@ class TopologicalLocalisation(Node):
     self.default_reinit_jsd_threshold = 0.975
     self.default_unconnected_jump_threshold = 0.6
 
-    self.sub_topo_map = self.create_subscription(TopologicalMap, "/topological_map", self._topo_map_cb, 1)
+    # Subscribe with transient QoS so old topomap gets loaded
+    qos_profile = QoSProfile(depth=1, durability=QoSDurabilityPolicy.TRANSIENT_LOCAL)
+    self.sub_topo_map = self.create_subscription(TopologicalMap, "/topological_map", self._topo_map_cb, qos_profile)
 
-    self.logger.info("Waiting for topological map...")
+    #self.logger.info("Waiting for topological map...")
     #while self.topo_map is None:
-    #  rospy.sleep(0.5)
+    #  time.sleep(0.5)
+    #  print(".", end="", flush=True)
       
     # declare services
     self.srv_localise_agent = self.create_service(LocaliseAgent, "~/localise_agent", self._localise_agent_handler)
@@ -75,21 +74,23 @@ class TopologicalLocalisation(Node):
 
     self.logger.info("DONE")
 
-  def _set_JSD_upper_bound(self, request):
+  def _set_JSD_upper_bound(self, request, response):
     self.default_reinit_jsd_threshold = request.value
     for pf in self.pfs:
       pf.set_JSD_upper_bound(request.value)
 
-    return SetFloat64Response(True)
+    response.success = True
+    return response
 
-  def _set_entropy_lower_bound(self, request):
+  def _set_entropy_lower_bound(self, request, response):
     self.default_unconnected_jump_threshold = request.value
     for pf in self.pfs:
       pf.set_entropy_lower_bound(request.value)
 
-    return SetFloat64Response(True)
+    response.success = True
+    return response
 
-  def _localise_agent_handler(self, request):
+  def _localise_agent_handler(self, request, response):
     # lock resources
     self.logger.info("Received request to localise new agent {}".format(request.name))
     self.internal_lock.acquire()
@@ -115,7 +116,8 @@ class TopologicalLocalisation(Node):
       self.logger.warn("Agent {} already being localised".format(name))
       # release resources
       self.internal_lock.release()
-      return LocaliseAgentResponse(False)
+      response.success = False
+      return response
 
     # Initialize the prediction model
     # if prediction_model == LocaliseAgentRequest.PRED_CTMC:
@@ -139,41 +141,41 @@ class TopologicalLocalisation(Node):
 
 
     # Initialize publishers and messages
-    cn_pub = self.create_publisher(String, "{}/estimated_node".format(name), queue_size=10, latch=True)
-    pd_pub = self.create_publisher(DistributionStamped, "{}/current_prob_dist".format(name), queue_size=10, latch=True)
-    ptcs_pub = self.create_publisher(ParticlesState, "{}/particles_states".format(name), queue_size=10, latch=True)
+    cn_pub = self.create_publisher(String, "{}/estimated_node".format(name), 10)
+    pd_pub = self.create_publisher(DistributionStamped, "{}/current_prob_dist".format(name), 10)
+    ptcs_pub = self.create_publisher(ParticlesState, "{}/particles_states".format(name), 10)
     self.res_publishers.append((cn_pub, pd_pub, ptcs_pub))
-    cnviz_pub = self.create_publisher(Marker, "{}/estimated_node_viz".format(name), queue_size=10)
-    parviz_pub = self.create_publisher(MarkerArray, "{}/particles_viz".format(name), queue_size=10)
-    staparviz_pub = self.create_publisher(MarkerArray, "{}/stateless_particles_viz".format(name), queue_size=10)
+    cnviz_pub = self.create_publisher(Marker, "{}/estimated_node_viz".format(name), 10)
+    parviz_pub = self.create_publisher(MarkerArray, "{}/particles_viz".format(name), 10)
+    staparviz_pub = self.create_publisher(MarkerArray, "{}/stateless_particles_viz".format(name), 10)
     self.viz_publishers.append((cnviz_pub, parviz_pub, staparviz_pub))
     nodemkrmsg = Marker()
     nodemkrmsg.header.frame_id = "map"
     nodemkrmsg.type = nodemkrmsg.SPHERE
-    nodemkrmsg.pose.position.z = 6
-    nodemkrmsg.pose.orientation.w = 1
+    nodemkrmsg.pose.position.z = 6.0
+    nodemkrmsg.pose.orientation.w = 1.0
     nodemkrmsg.scale.x = 0.5
     nodemkrmsg.scale.y = 0.5
     nodemkrmsg.scale.z = 0.5
-    nodemkrmsg.color.a = 1
-    nodemkrmsg.color.r = 0
-    nodemkrmsg.color.g = 0
-    nodemkrmsg.color.b = 1
+    nodemkrmsg.color.a = 1.0
+    nodemkrmsg.color.r = 0.0
+    nodemkrmsg.color.g = 0.0
+    nodemkrmsg.color.b = 1.0
     nodemkrmsg.id = 0
     ptcsarrmsg = MarkerArray()
     for i in range(n_particles):
       ptcmkrmsg = Marker()
       ptcmkrmsg.header.frame_id = "map"
       ptcmkrmsg.type = ptcmkrmsg.SPHERE
-      ptcmkrmsg.pose.position.z = 0
-      ptcmkrmsg.pose.orientation.w = 1
+      ptcmkrmsg.pose.position.z = 0.0
+      ptcmkrmsg.pose.orientation.w = 1.0
       ptcmkrmsg.scale.x = 0.1
       ptcmkrmsg.scale.y = 0.1
       ptcmkrmsg.scale.z = 0.1
       ptcmkrmsg.color.a = 0.6
-      ptcmkrmsg.color.r = 1
-      ptcmkrmsg.color.g = 0
-      ptcmkrmsg.color.b = 0
+      ptcmkrmsg.color.r = 1.0
+      ptcmkrmsg.color.g = 0.0
+      ptcmkrmsg.color.b = 0.0
       ptcmkrmsg.id = i
       ptcsarrmsg.markers.append(ptcmkrmsg)
     staptcsarrmsg = MarkerArray()
@@ -181,15 +183,15 @@ class TopologicalLocalisation(Node):
       staptcmkrmsg = Marker()
       staptcmkrmsg.header.frame_id = "map"
       staptcmkrmsg.type = staptcmkrmsg.SPHERE
-      staptcmkrmsg.pose.position.z = 0
-      staptcmkrmsg.pose.orientation.w = 1
+      staptcmkrmsg.pose.position.z = 0.0
+      staptcmkrmsg.pose.orientation.w = 1.0
       staptcmkrmsg.scale.x = 0.1
       staptcmkrmsg.scale.y = 0.1
       staptcmkrmsg.scale.z = 0.1
       staptcmkrmsg.color.a = 0.6
-      staptcmkrmsg.color.r = 1
-      staptcmkrmsg.color.g = 1
-      staptcmkrmsg.color.b = 0
+      staptcmkrmsg.color.r = 1.0
+      staptcmkrmsg.color.g = 1.0
+      staptcmkrmsg.color.b = 0.0
       staptcmkrmsg.id = i
       staptcsarrmsg.markers.append(staptcmkrmsg)
 
@@ -331,14 +333,15 @@ class TopologicalLocalisation(Node):
           len(msg.likelihood.nodes), len(msg.likelihood.values)))
 
     # subscribe to topics receiving observation
+    qos_profile = QoSProfile(depth=1, durability=QoSDurabilityPolicy.VOLATILE)
     self.obs_subscribers.append((
-      self.create_subscription(PoseObservation, "{}/pose_obs".format(name), __pose_obs_cb),
-      self.create_subscription(LikelihoodObservation, "{}/likelihood_obs".format(name), __likelihood_obs_cb)
+      self.create_subscription(PoseObservation, "{}/pose_obs".format(name), __pose_obs_cb, qos_profile),
+      self.create_subscription(LikelihoodObservation, "{}/likelihood_obs".format(name), __likelihood_obs_cb, qos_profile)
     ))
 
     ## Services handlers ##
     # Get the pose observation and returns the localisation result
-    def __update_pose_handler(request):
+    def __update_pose_handler(request, response):
       if np.isfinite(request.pose.pose.pose.position.x) and \
           np.isfinite(request.pose.pose.pose.position.y) and \
           np.isfinite(request.pose.pose.covariance[0]) and \
@@ -354,22 +357,20 @@ class TopologicalLocalisation(Node):
           identifying=request.identifying
         )
         __publish(p_estimated.node, particles)
-        resp = UpdatePoseObservationResponse()
-        resp.success = True
-        resp.estimated_node = __prepare_cn_msg(p_estimated.node).data
-        resp.current_prob_dist = __prepare_pd_msg(particles)
-        return(resp)
+        response.success = True
+        response.estimated_node = __prepare_cn_msg(p_estimated.node).data
+        response.current_prob_dist = __prepare_pd_msg(particles)
+        return(response)
       else:
         self.logger.warn(
           "Received non-admissible pose observation <{}, {}, {}, {}>, discarded".format(request.pose.pose.pose.position.x, request.pose.pose.pose.position.y, request.pose.pose.covariance[0], request.pose.pose.covariance[7]))
       
       # fallback negative response
-      resp = UpdatePoseObservationResponse()
-      resp.success = False
-      return(resp)
+      response.success = False
+      return(response)
 
     # get a likelihood observation and return localisation result
-    def __update_likelihood_handler(request):
+    def __update_likelihood_handler(request, response):
       if len(request.likelihood.nodes) == len(request.likelihood.values):
         try:
           nodes = [np.where(self.node_names == nname)[0][0]
@@ -390,11 +391,10 @@ class TopologicalLocalisation(Node):
               identifying=request.identifying
             )
             __publish(p_estimated.node, particles)
-            resp = UpdateLikelihoodObservationResponse()
-            resp.success = True
-            resp.estimated_node = __prepare_cn_msg(p_estimated.node).data
-            resp.current_prob_dist = __prepare_pd_msg(particles)
-            return(resp)
+            response.success = True
+            response.estimated_node = __prepare_cn_msg(p_estimated.node).data
+            response.current_prob_dist = __prepare_pd_msg(particles)
+            return(response)
           else:
             self.logger.warn(
               "Received non-admissible likelihood observation {}, discarded".format(request.likelihood.values))
@@ -404,11 +404,10 @@ class TopologicalLocalisation(Node):
           len(request.likelihood.nodes), len(request.likelihood.values)))
 
       # fallback negative response
-      resp = UpdateLikelihoodObservationResponse()
-      resp.success = False
-      return(resp)
+      response.success = False
+      return(response)
 
-    def __do_stateless_prediction(request):
+    def __do_stateless_prediction(request, response):
       # get a copy of the particle filter to work with
       _pf = pf.copy()
       # if requested pred rate is lesseq than 0 use the global one
@@ -417,18 +416,17 @@ class TopologicalLocalisation(Node):
       pred_step_secs = 1. / _prediction_rate
       secs_left = max(0.0, request.secs_from_now)
       time = rclpy.time.get_clock.now()
-      resp = PredictResponse()
-      resp.success = True
+      response.success = True
       # sub-function to append predictions to the result message
       def ___append_prediction(node, particles, secs_passed, timestamp):
         if not (node is None or particles is None):
           __publish_stateless_viz(particles)
-          resp.secs_from_now.append(secs_passed)
-          resp.estimated_node.append(__prepare_cn_msg(node).data)
-          resp.prob_dist.append(__prepare_pd_msg(particles, timestamp=timestamp))
+          response.secs_from_now.append(secs_passed)
+          response.estimated_node.append(__prepare_cn_msg(node).data)
+          response.prob_dist.append(__prepare_pd_msg(particles, timestamp=timestamp))
           return True
         else:
-          resp.success = False
+          response.success = False
           self.logger.warn(
             "Cannot perform prediction, no observation received so far.")
           return False
@@ -459,9 +457,9 @@ class TopologicalLocalisation(Node):
             secs_passed=request.secs_from_now - secs_left,
             timestamp=time)
 
-      return resp
+      return response
 
-    def __do_stateless_update(request):
+    def __do_stateless_update(request, response):
       # create a new PF and assign the prior distribution to start up with
       __pf = TopologicalParticleFilter(
         num=n_particles,
@@ -507,11 +505,10 @@ class TopologicalLocalisation(Node):
               ts,
               False  # this has to be false to avoid the risk it gets re-initialised uniformly by the JSD threshold
             )
-            resp = UpdatePriorLikelihoodObservationResponse()
-            resp.success = True
-            resp.estimated_node = __prepare_cn_msg(p_estimated.node).data
-            resp.current_prob_dist = __prepare_pd_msg(particles)
-            return(resp)
+            response.success = True
+            response.estimated_node = __prepare_cn_msg(p_estimated.node).data
+            response.current_prob_dist = __prepare_pd_msg(particles)
+            return(response)
           else:
             self.logger.warn(
               "Received non-admissible prior/likelihood observation {}, discarded".format(request.prior.values, request.likelihood.values))
@@ -521,17 +518,17 @@ class TopologicalLocalisation(Node):
 
     # subscribe to services for update
     self.upd_services.append({
-      rclpy.create_service(UpdatePoseObservation, "{}/update_pose_obs".format(name), __update_pose_handler),
-      rclpy.create_service(UpdateLikelihoodObservation, "{}/update_likelihood_obs".format(name), __update_likelihood_handler),
-      rclpy.create_service(Predict, "{}/predict_stateless".format(name), __do_stateless_prediction),
-      rclpy.create_service(UpdatePriorLikelihoodObservation, "{}/update_stateless".format(name), __do_stateless_update)
+      self.create_service(UpdatePoseObservation, "{}/update_pose_obs".format(name), __update_pose_handler),
+      self.create_service(UpdateLikelihoodObservation, "{}/update_likelihood_obs".format(name), __update_likelihood_handler),
+      self.create_service(Predict, "{}/predict_stateless".format(name), __do_stateless_prediction),
+      self.create_service(UpdatePriorLikelihoodObservation, "{}/update_stateless".format(name), __do_stateless_update)
     })
     
     thr = None
     if do_prediction:
       # threaded function that performs predictions at a constant rate
       def __prediction_loop():
-        rate = rospy.Rate(prediction_rate)
+        rate = self.create_rate(prediction_rate)
         while not stop_event.is_set():
           p_estimate, particles = pf.predict(
             timestamp_secs=rclpy.time.get_clock.now().to_sec()
@@ -558,9 +555,10 @@ class TopologicalLocalisation(Node):
 
     self.logger.info("DONE")
 
-    return LocaliseAgentResponse(True)
+    response.success = True
+    return response
 
-  def _stop_localise_handler(self, request):
+  def _stop_localise_handler(self, request, response):
     self.logger.info("Unregistering agent {} for localisation".format(request.name))
     self.internal_lock.acquire()
     # default name is unknown if requested is ''
@@ -596,11 +594,13 @@ class TopologicalLocalisation(Node):
 
       self.internal_lock.release()
       self.logger.info("DONE")
-      return StopLocaliseResponse(True)
+      response.success = True
+      return response
     else:
       self.logger.warn("The agent {} is already not being localised.".format(name))
       self.internal_lock.release()
-      return StopLocaliseResponse(False)
+      response.success = False
+      return response
 
   def _topo_map_cb(self, msg):
     """This function receives the Topological Map"""
@@ -616,18 +616,15 @@ class TopologicalLocalisation(Node):
     self.connected_nodes = []
     for i, _ in enumerate(self.node_names):
       self.node_diffs2D.append(self.node_coords - self.node_coords[i])
-      self.connected_nodes.append(np.array([np.where(self.node_names == edge.node)[
-                    0][0] for edge in self.topo_map.nodes[i].edges]))
+      self.connected_nodes.append(
+          np.array([np.where(self.node_names == edge.node)[0][0] for edge in self.topo_map.nodes[i].edges]))
 
     self.node_diffs2D = np.array(self.node_diffs2D)
-    self.connected_nodes = np.array(self.connected_nodes)
+    #self.connected_nodes = np.array(self.connected_nodes)
     
     self.node_distances = np.sqrt(np.sum(self.node_diffs2D ** 2, axis=2))
+    self.logger.info("Received topomap")
     
-    # print("self.node_diffs2D", self.node_diffs2D.shape)
-    # print("self.node_distances", self.node_distances.shape)
-    # print("self.connected_nodes", self.connected_nodes.shape)
-
   def close(self):
     # stop all the threads
     for thr, stop_event in zip(self.prediction_threads, self.stopping_events):

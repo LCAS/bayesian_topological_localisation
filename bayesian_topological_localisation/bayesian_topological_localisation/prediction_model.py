@@ -2,6 +2,7 @@
 
 import numpy as np
 
+
 class PredictionModel:
 
     CTMC = 0 # continuous-time markov chain
@@ -12,7 +13,7 @@ class PredictionModel:
         self.node_coords = np.array(node_coords)
         self.node_diffs2D = np.array(node_diffs2D)
         self.node_distances = np.array(node_distances)
-        self.connected_nodes = np.array(connected_nodes)
+        self.connected_nodes = connected_nodes
         self.unconnected_distance = unconnected_distance
 
     # always predict the node it's already in
