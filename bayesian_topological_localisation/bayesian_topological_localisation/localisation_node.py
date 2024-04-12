@@ -61,10 +61,10 @@ class TopologicalLocalisation(Node):
     qos_profile = QoSProfile(depth=1, durability=QoSDurabilityPolicy.TRANSIENT_LOCAL)
     self.sub_topo_map = self.create_subscription(TopologicalMap, "/topological_map", self._topo_map_cb, qos_profile)
 
-    #self.logger.info("Waiting for topological map...")
-    #while self.topo_map is None:
-    #  time.sleep(0.5)
-    #  print(".", end="", flush=True)
+    self.logger.info("Waiting for topological map...")
+    while self.topo_map is None:
+      rclpy.spin_once(self)
+      time.sleep(0.5)
       
     # declare services
     self.srv_localise_agent = self.create_service(LocaliseAgent, "~/localise_agent", self._localise_agent_handler)
@@ -91,8 +91,9 @@ class TopologicalLocalisation(Node):
     return response
 
   def _localise_agent_handler(self, request, response):
-    # lock resources
+    # """Register new agent to localise"""
     self.logger.info("Received request to localise new agent {}".format(request.name))
+    # lock resources
     self.internal_lock.acquire()
 
     # to stop executing in other threads/cbs
@@ -343,18 +344,18 @@ class TopologicalLocalisation(Node):
     # Get the pose observation and returns the localisation result
     def __update_pose_handler(request, response):
       if np.isfinite(request.pose.pose.pose.position.x) and \
-          np.isfinite(request.pose.pose.pose.position.y) and \
-          np.isfinite(request.pose.pose.covariance[0]) and \
-          np.isfinite(request.pose.pose.covariance[7]):
+         np.isfinite(request.pose.pose.pose.position.y) and \
+         np.isfinite(request.pose.pose.covariance[0]) and \
+         np.isfinite(request.pose.pose.covariance[7]):
         p_estimated, particles = pf.receive_pose_obs(
-          request.pose.pose.pose.position.x,
-          request.pose.pose.pose.position.y,
-          request.pose.pose.covariance[0],  # variance of x
-          request.pose.pose.covariance[7],  # variance of y
-          # (rclpy.time.get_clock.now().to_sec(), request.pose.header.stamp.to_sec())[
-          #     request.pose.header.stamp.to_sec() > 0]
-          rclpy.time.get_clock.now().to_sec(),
-          identifying=request.identifying
+            request.pose.pose.pose.position.x,
+            request.pose.pose.pose.position.y,
+            request.pose.pose.covariance[0],  # variance of x
+            request.pose.pose.covariance[7],  # variance of y
+            # (rclpy.time.get_clock.now().to_sec(), request.pose.header.stamp.to_sec())[
+            #     request.pose.header.stamp.to_sec() > 0]
+            rclpy.time.get_clock.now().to_sec(),
+            identifying=request.identifying
         )
         __publish(p_estimated.node, particles)
         response.success = True
@@ -373,11 +374,9 @@ class TopologicalLocalisation(Node):
     def __update_likelihood_handler(request, response):
       if len(request.likelihood.nodes) == len(request.likelihood.values):
         try:
-          nodes = [np.where(self.node_names == nname)[0][0]
-               for nname in request.likelihood.nodes]
+          nodes = [np.where(self.node_names == nname)[0][0] for nname in request.likelihood.nodes]
         except IndexError:
-          self.logger.warn(
-            "Received non-admissible node name {}, likelihood discarded".format(request.likelihood.nodes))
+          self.logger.warn("Received non-admissible node name {}, likelihood discarded".format(request.likelihood.nodes))
         else:
           values = np.array(request.likelihood.values)
           # self.logger.info("Received likelihood: {}".format(zip(nodes, values)))
@@ -396,8 +395,7 @@ class TopologicalLocalisation(Node):
             response.current_prob_dist = __prepare_pd_msg(particles)
             return(response)
           else:
-            self.logger.warn(
-              "Received non-admissible likelihood observation {}, discarded".format(request.likelihood.values))
+            self.logger.warn("Received non-admissible likelihood observation {}, discarded".format(request.likelihood.values))
 
       else:
         self.logger.warn("Nodes array and values array sizes do not match {} != {}, discarding likelihood observation".format(
@@ -559,6 +557,7 @@ class TopologicalLocalisation(Node):
     return response
 
   def _stop_localise_handler(self, request, response):
+    # """Remove specific localisation agent."""
     self.logger.info("Unregistering agent {} for localisation".format(request.name))
     self.internal_lock.acquire()
     # default name is unknown if requested is ''
@@ -603,7 +602,7 @@ class TopologicalLocalisation(Node):
       return response
 
   def _topo_map_cb(self, msg):
-    """This function receives the Topological Map"""
+    """Receive the Topological Map."""
     self.topo_map = msg
 
     # save and compute topological map informations
