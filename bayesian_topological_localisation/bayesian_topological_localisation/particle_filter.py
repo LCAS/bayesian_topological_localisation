@@ -89,8 +89,8 @@ class TopologicalParticleFilter():
         if row_sums == 0:
             arr = np.ones(arr.shape)
             row_sums = np.sum(arr)
-            if self.print_debug:
-                rospy.logwarn("Array to normalise is zero, resorting to uniform")
+            #if self.print_debug:
+            #    rospy.logwarn("Array to normalise is zero, resorting to uniform")
         arr = arr.astype(float) / row_sums
         return arr
 
@@ -277,9 +277,9 @@ class TopologicalParticleFilter():
 
         # it measn the particles are "disjoint" from this obs
         if identifying and js_distance > self.reinit_jsd_threshold:
-            if self.print_debug:
-                rospy.logwarn("Reinitializing particles, JS distance between prior and likelihood {} is greater than {}".format(
-                    js_distance, self.reinit_jsd_threshold))
+            #if self.print_debug:
+            #    rospy.logwarn("Reinitializing particles, JS distance between prior and likelihood {} is greater than {}".format(
+            #        js_distance, self.reinit_jsd_threshold))
             self._initialize_wt_pose(obs_x, obs_y, cov_x, cov_y, timestamp_secs)
             self.only_connected = False # we are not really sure now anymore
 
@@ -312,9 +312,9 @@ class TopologicalParticleFilter():
 
         # it measn the particles are "disjoint" from this obs
         if identifying and js_distance > self.reinit_jsd_threshold:
-            if self.print_debug:
-                rospy.logwarn("Reinitializing particles, JS distance between prior and likelihood {} is greater than {}".format(
-                    js_distance, self.reinit_jsd_threshold))
+            #if self.print_debug:
+            #    rospy.logwarn("Reinitializing particles, JS distance between prior and likelihood {} is greater than {}".format(
+            #        js_distance, self.reinit_jsd_threshold))
             self._initialize_wt_likelihood(nodes_dist, likelihood, timestamp_secs)
             self.only_connected = False # we are not really sure now anymore
 
@@ -374,8 +374,8 @@ class TopologicalParticleFilter():
 
         if not self.only_connected and p_entropy < self.unconnected_jump_threshold:
             self.only_connected = True
-            if self.print_debug:
-                rospy.logwarn("Stop jumping to unconnected nodes, entropy of current particles distribution {} smaller than {}.".format(p_entropy, self.unconnected_jump_threshold))
+            #if self.print_debug:
+            #    rospy.logwarn("Stop jumping to unconnected nodes, entropy of current particles distribution {} smaller than {}.".format(p_entropy, self.unconnected_jump_threshold))
 
     def set_JSD_upper_bound(self, bound):
         self.reinit_jsd_threshold = bound
