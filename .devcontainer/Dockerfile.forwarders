@@ -1,0 +1,8 @@
+FROM python:3.9
+
+ADD https://github.com/LCAS/CAR-Forwarders/archive/refs/heads/main.zip /CAR-Forwarders.zip
+RUN unzip /CAR-Forwarders.zip -d /CAR-Forwarders
+WORKDIR /CAR-Forwarders
+RUN pip install paho-mqtt==1.6.1 websocket-client==1.3.3 rel==0.4.7
+
+CMD ["python", "MtoWENV.py"]

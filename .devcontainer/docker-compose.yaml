@@ -1,0 +1,60 @@
+
+version: '3'
+services:
+  bayes_topological_localiser:
+    build:
+      dockerfile: Dockerfile
+      context: ..
+    
+  car:
+    build: 
+      dockerfile: Dockerfile.car
+      context: .
+    image: lcas.lincoln.ac.uk/lcas/car:latest
+    restart: always
+    #command: ["env"]
+    #command: ["python", "callarobot.py"]
+    ports:
+      - 8127:8127
+      - 8128:8128
+    env_file: ./env
+    environment:
+      # We are tkaking the Google Maps API key form a .env file (or set it before docker-compose up)
+      PYTHONUNBUFFERED: 1
+      #GMAPS_API: ${GMAPS_API:-define_your_API_key_in_a_dot_env_file}
+      #CAR_ROWS: ${CAR_ROWS:-1 2 3 4 5 6 7 8 9 10 11 12}
+      #WEBSOCKET_URL: ${WEBSOCKET_URL:-wss://lcas.lincoln.ac.uk/rasberry/ws}
+      CAR_LOG_DIR: "/car_logs"
+    volumes:
+      - ./car_logs:/car_logs
+
+  car_forwards_MtoW:
+    #depends_on:
+    #  - car
+    image: lcas.lincoln.ac.uk/lcas/car-forwarders:latest
+    restart: always
+    build: 
+      context: .
+      dockerfile: Dockerfile.forwarders 
+    command: ["python", "MtoWENV.py"]
+    env_file: ./env
+    links: 
+      - car
+    environment:
+      WEBSOCKET_URL: ws://car:8128/rasberry/ws
+      PYTHONUNBUFFERED: 1
+
+  car_forwards_WtoM:
+    #depends_on:
+    #  - car
+    image: lcas.lincoln.ac.uk/lcas/car-forwarders:latest
+    restart: always
+    build: 
+      context: .
+      dockerfile: Dockerfile.forwarders 
+    command: ["python", "WtoMENV.py"]
+    env_file: ./env
+    environment:
+      WEBSOCKET_URL: ws://car:8128/rasberry/ws
+      PYTHONUNBUFFERED: 1
+    
