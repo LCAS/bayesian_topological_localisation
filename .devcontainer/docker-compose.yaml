@@ -3,8 +3,9 @@ version: '3'
 services:
   bayes_topological_localiser:
     build:
-      dockerfile: Dockerfile
+      dockerfile: .devcontainer/Dockerfile
       context: ..
+    command: ["python", "bayes_topological_localiser.py"]
     
   car:
     build: 
@@ -25,12 +26,10 @@ services:
       #CAR_ROWS: ${CAR_ROWS:-1 2 3 4 5 6 7 8 9 10 11 12}
       #WEBSOCKET_URL: ${WEBSOCKET_URL:-wss://lcas.lincoln.ac.uk/rasberry/ws}
       CAR_LOG_DIR: "/car_logs"
-    volumes:
-      - ./car_logs:/car_logs
 
   car_forwards_MtoW:
-    #depends_on:
-    #  - car
+    depends_on:
+      - car
     image: lcas.lincoln.ac.uk/lcas/car-forwarders:latest
     restart: always
     build: 
@@ -38,15 +37,15 @@ services:
       dockerfile: Dockerfile.forwarders 
     command: ["python", "MtoWENV.py"]
     env_file: ./env
-    links: 
-      - car
     environment:
       WEBSOCKET_URL: ws://car:8128/rasberry/ws
       PYTHONUNBUFFERED: 1
+    links: 
+      - car
 
   car_forwards_WtoM:
-    #depends_on:
-    #  - car
+    depends_on:
+      - car
     image: lcas.lincoln.ac.uk/lcas/car-forwarders:latest
     restart: always
     build: 
@@ -57,4 +56,6 @@ services:
     environment:
       WEBSOCKET_URL: ws://car:8128/rasberry/ws
       PYTHONUNBUFFERED: 1
+    links: 
+      - car
     
