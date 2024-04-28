@@ -1,10 +1,8 @@
 FROM python:3.9
 
 RUN wget -O /CAR-Forwarders.zip https://github.com/LCAS/CAR-Forwarders/archive/refs/heads/main.zip 
-RUN unzip /CAR-Forwarders.zip -d /CAR-Forwarders
-RUN ls -l / /CAR-Forwarders
-WORKDIR /CAR-Forwarders/CAR-Forwarders-main
-RUN find .
+RUN unzip /CAR-Forwarders.zip -d / && mv /CAR-Forwarders-main /CAR-Forwarders
+WORKDIR /CAR-Forwarders
 RUN pip install paho-mqtt==1.6.1 websocket-client==1.3.3 rel==0.4.7
 
 CMD ["python", "MtoWENV.py"]

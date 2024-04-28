@@ -5,14 +5,20 @@ services:
     build:
       dockerfile: .devcontainer/Dockerfile
       context: ..
-    command: ["python", "bayes_topological_localiser.py"]
+    #command: ["python", "bayes_topological_localiser.py"]
     
+  mosquitto:
+    image: eclipse-mosquitto:1.6
+    ports:
+      - 1883
+    volumes:
+      - ./mosquitto.conf:/mosquitto/config/mosquitto.conf
+
   car:
     build: 
       dockerfile: Dockerfile.car
       context: .
     image: lcas.lincoln.ac.uk/lcas/car:latest
-    restart: always
     #command: ["env"]
     #command: ["python", "callarobot.py"]
     ports:
@@ -25,13 +31,13 @@ services:
       #GMAPS_API: ${GMAPS_API:-define_your_API_key_in_a_dot_env_file}
       #CAR_ROWS: ${CAR_ROWS:-1 2 3 4 5 6 7 8 9 10 11 12}
       #WEBSOCKET_URL: ${WEBSOCKET_URL:-wss://lcas.lincoln.ac.uk/rasberry/ws}
-      CAR_LOG_DIR: "/car_logs"
+      CAR_LOG_DIR: "/tmp"
 
   car_forwards_MtoW:
     depends_on:
       - car
+      - mosquitto
     image: lcas.lincoln.ac.uk/lcas/car-forwarders:latest
-    restart: always
     build: 
       context: .
       dockerfile: Dockerfile.forwarders 
@@ -42,12 +48,13 @@ services:
       PYTHONUNBUFFERED: 1
     links: 
       - car
+      - mosquitto
 
   car_forwards_WtoM:
     depends_on:
       - car
+      - mosquitto
     image: lcas.lincoln.ac.uk/lcas/car-forwarders:latest
-    restart: always
     build: 
       context: .
       dockerfile: Dockerfile.forwarders 
@@ -58,4 +65,15 @@ services:
       PYTHONUNBUFFERED: 1
     links: 
       - car
-    
+      - mosquitto
+
+  nginx:
+    image: nginx:latest
+    ports:
+      - 8827:80
+    volumes:
+      - ./nginx.conf:/etc/nginx/nginx.conf
+    depends_on:
+      - car
+    links:
+      - car

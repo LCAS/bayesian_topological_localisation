@@ -21,7 +21,7 @@ COPY --from=sourcefilter /tmp/src /tmp/src
 RUN rosdep update && apt-get update
 RUN cd /tmp/src && rosdep install --from-paths . --ignore-src -r -y && cd && rm -rf /tmp/src
 
-FROM depbuilder as final
+FROM depbuilder as dev_base
 # add user ros with sudo rights
 RUN useradd -ms /bin/bash ros && echo "ros:ros" | chpasswd && adduser ros sudo
 
@@ -29,3 +29,15 @@ RUN useradd -ms /bin/bash ros && echo "ros:ros" | chpasswd && adduser ros sudo
 RUN echo "ALL ALL=(ALL) NOPASSWD: ALL" >> /etc/sudoers
 
 RUN echo "source /opt/ros/humble/setup.bash" >> /etc/bash.bashrc
+
+FROM dev_base as build
+
+COPY ./src /home/ros/ros_ws/src
+RUN chown -R ros:ros /home/ros/ros_ws
+
+USER ros
+WORKDIR /home/ros/ros_ws
+
+RUN /bin/bash -c "source /opt/ros/humble/setup.bash; colcon build"
+
+CMD [ "bash", "-c", "source /home/ros/ros_ws/install/setup.bash; ros2 run bayesian_topological_localisation localisation_node.py" ]
