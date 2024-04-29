@@ -5,26 +5,16 @@ services:
     build:
       dockerfile: .devcontainer/Dockerfile
       context: ..
+    environment:
+      - WEBSOCKET_URL=ws://car:8128/
     #command: ["python", "bayes_topological_localiser.py"]
     
-  mosquitto:
-    image: eclipse-mosquitto:1.6
-    ports:
-      - 1883
-    volumes:
-      - ./mosquitto.conf:/mosquitto/config/mosquitto.conf
-
   car:
-    build: 
-      dockerfile: Dockerfile.car
-      context: .
     image: lcas.lincoln.ac.uk/lcas/car:latest
-    #command: ["env"]
-    #command: ["python", "callarobot.py"]
-    ports:
-      - 8127:8127
-      - 8128:8128
     env_file: ./env
+    ports:
+      - 8127
+      - 8128
     environment:
       # We are tkaking the Google Maps API key form a .env file (or set it before docker-compose up)
       PYTHONUNBUFFERED: 1
@@ -32,40 +22,6 @@ services:
       #CAR_ROWS: ${CAR_ROWS:-1 2 3 4 5 6 7 8 9 10 11 12}
       #WEBSOCKET_URL: ${WEBSOCKET_URL:-wss://lcas.lincoln.ac.uk/rasberry/ws}
       CAR_LOG_DIR: "/tmp"
-
-  car_forwards_MtoW:
-    depends_on:
-      - car
-      - mosquitto
-    image: lcas.lincoln.ac.uk/lcas/car-forwarders:latest
-    build: 
-      context: .
-      dockerfile: Dockerfile.forwarders 
-    command: ["python", "MtoWENV.py"]
-    env_file: ./env
-    environment:
-      WEBSOCKET_URL: ws://car:8128/rasberry/ws
-      PYTHONUNBUFFERED: 1
-    links: 
-      - car
-      - mosquitto
-
-  car_forwards_WtoM:
-    depends_on:
-      - car
-      - mosquitto
-    image: lcas.lincoln.ac.uk/lcas/car-forwarders:latest
-    build: 
-      context: .
-      dockerfile: Dockerfile.forwarders 
-    command: ["python", "WtoMENV.py"]
-    env_file: ./env
-    environment:
-      WEBSOCKET_URL: ws://car:8128/rasberry/ws
-      PYTHONUNBUFFERED: 1
-    links: 
-      - car
-      - mosquitto
 
   nginx:
     image: nginx:latest
@@ -77,3 +33,29 @@ services:
       - car
     links:
       - car
+
+  zenoh:
+    image: eclipse/zenoh-bridge-ros2dds:latest
+    environment:
+      - CYCLONEDDS_URI=file:///etc/cyclonedds/cyclonedds.xml
+      - ROS_DOMAIN_ID=0
+      - ROS_DISTRO=humble
+    ports:
+      - 7447
+      - 8888
+    volumes:
+      - ./cyclonedds.xml:/etc/cyclonedds/cyclonedds.xml:ro
+    command: "-l tcp/0.0.0.0:7447 -r 0.0.0.0:8888 -d 0 -m peer"
+
+  ros_bridge:
+    build:
+      context: .
+      dockerfile: Dockerfile.ros_bridge
+    environment:
+      - CYCLONEDDS_URI=file:///etc/cyclonedds/cyclonedds.xml
+      - ROS_DOMAIN_ID=0
+      - ROS_MASTER_URI=http://localhost:11311
+    user: ros
+    volumes:
+      - ./cyclonedds.xml:/etc/cyclonedds/cyclonedds.xml:ro
+    command: "/bin/bash -c 'sleep 5; ros2 run ros1_bridge dynamic_bridge --bridge-all-topics'"
