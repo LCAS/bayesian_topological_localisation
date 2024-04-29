@@ -12,10 +12,13 @@
 		"ghcr.io/devcontainers/features/desktop-lite:1": {}
 	},
 
-	"forwardPorts": [6080],
+	"forwardPorts": [6080, "nginx:80"],
 	"portsAttributes": {
 		"6080": {
 			"label": "desktop"
+		},
+		"nginx:80": {
+			"label": "CAR server"
 		}
 	},
 
