@@ -5,8 +5,14 @@ services:
     build:
       dockerfile: .devcontainer/Dockerfile
       context: ..
+    env_file: ./env
     environment:
       - WEBSOCKET_URL=ws://car:8128/
+    networks:
+      - ros_network
+      - car_network
+    volumes:
+      - ./cyclonedds.xml:/etc/cyclonedds/cyclonedds.xml:ro
     #command: ["python", "bayes_topological_localiser.py"]
     
   car:
@@ -22,6 +28,8 @@ services:
       #CAR_ROWS: ${CAR_ROWS:-1 2 3 4 5 6 7 8 9 10 11 12}
       #WEBSOCKET_URL: ${WEBSOCKET_URL:-wss://lcas.lincoln.ac.uk/rasberry/ws}
       CAR_LOG_DIR: "/tmp"
+    networks:
+      - car_network
 
   nginx:
     image: nginx:latest
@@ -33,6 +41,8 @@ services:
       - car
     links:
       - car
+    networks:
+      - car_network
 
   zenoh:
     image: eclipse/zenoh-bridge-ros2dds:latest
@@ -46,6 +56,9 @@ services:
     volumes:
       - ./cyclonedds.xml:/etc/cyclonedds/cyclonedds.xml:ro
     command: "-l tcp/0.0.0.0:7447 -r 0.0.0.0:8888 -d 0 -m peer"
+    networks:
+      - ros_network
+      - zenoh_network
 
   ros_bridge:
     build:
@@ -59,3 +72,22 @@ services:
     volumes:
       - ./cyclonedds.xml:/etc/cyclonedds/cyclonedds.xml:ro
     command: "/bin/bash -c 'sleep 5; ros2 run ros1_bridge dynamic_bridge --bridge-all-topics'"
+    networks:
+      - ros_network
+
+networks:
+  ros_network:
+    driver: bridge
+  car_network:
+    driver: bridge
+    driver_opts:
+      # prefix the zenoh network with a different name the "eth", to avoid conflicts with the ROS2 network
+      # and to ensure the ROS DDS discovery works correctly only on the interface defined in cyclonedds.xml
+      com.docker.network.container_iface_prefix: "car"
+  zenoh_network:
+    driver: bridge
+    driver_opts:
+      # prefix the zenoh network with a different name the "eth", to avoid conflicts with the ROS2 network
+      # and to ensure the ROS DDS discovery works correctly only on the interface defined in cyclonedds.xml
+      com.docker.network.container_iface_prefix: "zenoh"
+  

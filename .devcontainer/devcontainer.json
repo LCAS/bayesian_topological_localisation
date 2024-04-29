@@ -12,13 +12,19 @@
 		"ghcr.io/devcontainers/features/desktop-lite:1": {}
 	},
 
-	"forwardPorts": [6080, "nginx:80"],
+	"forwardPorts": [6080, "nginx:80", "zenoh:8888", "zenoh:7447"],
 	"portsAttributes": {
 		"6080": {
-			"label": "desktop"
+			"label": "virtual desktop"
 		},
 		"nginx:80": {
 			"label": "CAR server"
+		},
+		"zenoh:8888": {
+			"label": "Zenoh REST API"
+		},
+		"zenoh:7447": {
+			"label": "Zenoh bridge"
 		}
 	},
 

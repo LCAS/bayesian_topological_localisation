@@ -5,7 +5,9 @@ RUN apt-get update \
     && apt-get install -qq -y --no-install-recommends \
     git \
     python3-pip \
-    python3-rosdep
+    python3-rosdep \
+    ros-humble-rmw-cyclonedds-cpp \
+    ros-humble-cyclonedds
 
 # get the source tree and analyse it for its package.xml only
 FROM base as sourcefilter
