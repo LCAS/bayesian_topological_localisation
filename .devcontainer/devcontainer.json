@@ -1,0 +1,54 @@
+// For format details, see https://aka.ms/devcontainer.json. For config options, see the
+// README at: https://github.com/devcontainers/templates/tree/main/src/ubuntu
+{
+	"name": "L-CAS Humble Devcontainer for Bayes Topological Localiser",
+	// Or use a Dockerfile or Docker Compose file. More info: https://containers.dev/guide/dockerfile
+	"dockerComposeFile": ["docker-compose.yaml", "docker-compose.dev.yaml"],
+	"service": "bayes_topological_localiser",
+	"workspaceFolder": "/workspace",
+
+	// Features to add to the dev container. More info: https://containers.dev/features.
+	"features": {
+		"ghcr.io/devcontainers/features/desktop-lite:1": {}
+	},
+
+	"forwardPorts": [6080, "nginx:80", "zenoh:8888", "zenoh:7447"],
+	"portsAttributes": {
+		"6080": {
+			"label": "virtual desktop"
+		},
+		"nginx:80": {
+			"label": "CAR server"
+		},
+		"zenoh:8888": {
+			"label": "Zenoh REST API"
+		},
+		"zenoh:7447": {
+			"label": "Zenoh bridge"
+		}
+	},
+
+	// Use 'postCreateCommand' to run commands after the container is created.
+	"postCreateCommand": ".devcontainer/post-create.sh",
+
+	// Configure tool-specific properties.
+	// "customizations": {},
+
+	// Uncomment to connect as root instead. More info: https://aka.ms/dev-containers-non-root.
+	"remoteUser": "ros",
+	"updateRemoteUserUID": true,
+	"customizations": {
+		"vscode": {
+			"extensions": [
+				"ms-python.python",
+				"GitHub.vscode-pull-request-github",
+				"ms-vscode.cpptools",
+				"JaehyunShim.vscode-ros2",
+				"nonanonno.vscode-ros2",
+				"deitry.colcon-helper",
+				"github.vscode-github-actions"
+			]
+		}
+	}
+
+}
