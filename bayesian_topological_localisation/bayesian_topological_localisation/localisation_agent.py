@@ -13,7 +13,7 @@ import threading
 from bayesian_topological_localisation.particle_filter import TopologicalParticleFilter
 from bayesian_topological_localisation.prediction_model import PredictionModel
 from bayesian_topological_localisation.topological_map import TopologicalMap
-from bayesian_topological_localisation_msgs.srv import LocaliseAgent, StopLocalise, UpdatePoseObservation, \
+from bayesian_topological_localisation_msgs.srv import UpdatePoseObservation, \
                                                        UpdateLikelihoodObservation,  UpdatePriorLikelihoodObservation, \
                                                        Predict, SetFloat64
 
@@ -158,7 +158,8 @@ class LocalisationAgent(Node):
 
     if timestamp is None:
       timestamp = self.get_clock().now()
-    msg_pd.header.stamp = timestamp
+
+    msg_pd.header.stamp = timestamp.to_msg()
     msg_pd.nodes = self.topo_map.node_names.tolist()
     msg_pd.values = np.copy(probs).tolist()
 
@@ -185,7 +186,7 @@ class LocalisationAgent(Node):
 
     # publish viz stuff
     for i, p in enumerate(particles):
-      self.msg_particle_marker_array.markers[i].header.stamp = self.get_clock().now()
+      self.msg_particle_marker_array.markers[i].header.stamp = self.get_clock().now().to_msg()
       self.msg_particle_marker_array.markers[i].pose.position.x = self.topo_map.node_coords[p.node][0] + \
         self.msg_particle_marker_array.markers[i].scale.x * np.random.randn(1, 1)
       self.msg_particle_marker_array.markers[i].pose.position.y = self.topo_map.node_coords[p.node][1] + \
@@ -200,7 +201,7 @@ class LocalisationAgent(Node):
   def publish_stateless_viz(self, particles):
     # publish viz stuff
     for i, p in enumerate(particles):
-      self.msg_stateless_particle_marker_array.markers[i].header.stamp = self.get_clock().now()
+      self.msg_stateless_particle_marker_array.markers[i].header.stamp = self.get_clock().now().to_msg()
       self.msg_stateless_particle_marker_array.markers[i].pose.position.x = self.topo_map.node_coords[p.node][0] + \
         self.msg_stateless_particle_marker_array.markers[i].scale.x * np.random.randn(1, 1)
       self.msg_stateless_particle_marker_array.markers[i].pose.position.y = self.topo_map.node_coords[p.node][1] + \
