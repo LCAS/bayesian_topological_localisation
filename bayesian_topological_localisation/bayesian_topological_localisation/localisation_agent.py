@@ -50,7 +50,7 @@ class LocalisationAgent(Node):
     self.msg_node_marker = Marker()
     self.msg_node_marker.header.frame_id = "map"
     self.msg_node_marker.type = self.msg_node_marker.SPHERE
-    self.msg_node_marker.pose.position.z = 6.0
+    self.msg_node_marker.pose.position.z = 0.5
     self.msg_node_marker.pose.orientation.w = 1.0
     self.msg_node_marker.scale.x = 0.5
     self.msg_node_marker.scale.y = 0.5
@@ -188,9 +188,9 @@ class LocalisationAgent(Node):
     for i, p in enumerate(particles):
       self.msg_particle_marker_array.markers[i].header.stamp = self.get_clock().now().to_msg()
       self.msg_particle_marker_array.markers[i].pose.position.x = self.topo_map.node_coords[p.node][0] + \
-        self.msg_particle_marker_array.markers[i].scale.x * np.random.randn(1, 1)
+        self.msg_particle_marker_array.markers[i].scale.x * np.random.rand()
       self.msg_particle_marker_array.markers[i].pose.position.y = self.topo_map.node_coords[p.node][1] + \
-        self.msg_particle_marker_array.markers[i].scale.y * np.random.randn(1, 1)
+        self.msg_particle_marker_array.markers[i].scale.y * np.random.rand()
     self.msg_node_marker.pose.position.x = self.topo_map.node_coords[node][0]
     self.msg_node_marker.pose.position.y = self.topo_map.node_coords[node][1]
 
@@ -203,9 +203,9 @@ class LocalisationAgent(Node):
     for i, p in enumerate(particles):
       self.msg_stateless_particle_marker_array.markers[i].header.stamp = self.get_clock().now().to_msg()
       self.msg_stateless_particle_marker_array.markers[i].pose.position.x = self.topo_map.node_coords[p.node][0] + \
-        self.msg_stateless_particle_marker_array.markers[i].scale.x * np.random.randn(1, 1)
+        self.msg_stateless_particle_marker_array.markers[i].scale.x * np.random.rand()
       self.msg_stateless_particle_marker_array.markers[i].pose.position.y = self.topo_map.node_coords[p.node][1] + \
-        self.msg_stateless_particle_marker_array.markers[i].scale.y * np.random.randn(1, 1)
+        self.msg_stateless_particle_marker_array.markers[i].scale.y * np.random.rand()
 
     self.pub_staparviz.publish(self.msg_stateless_particle_marker_array)
 

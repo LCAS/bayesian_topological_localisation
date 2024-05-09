@@ -9,8 +9,7 @@ class TopologicalMap():
     if msg is not None:
       # save and compute topological map informations
       self.node_names = np.array([node.name for node in msg.nodes])
-      self.node_coords = np.array(
-        [[node.pose.position.x, node.pose.position.y] for node in msg.nodes])
+      self.node_coords = np.array([[node.pose.position.x, node.pose.position.y] for node in msg.nodes], dtype=float)
 
       self.node_diffs2D = []
       self.node_distances = []
