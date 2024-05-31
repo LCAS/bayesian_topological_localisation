@@ -3,7 +3,6 @@
 import rclpy
 from rclpy.node import Node
 from rclpy.qos import QoSDurabilityPolicy, QoSProfile
-from threading import Thread
 import time
 import numpy as np
 
@@ -35,7 +34,7 @@ class TopologicalLocalisation(Node):
 
     # Subscribe with transient QoS so previously published topomap gets loaded
     qos_profile = QoSProfile(depth=1, durability=QoSDurabilityPolicy.TRANSIENT_LOCAL)
-    self.sub_topo_map = self.create_subscription(TopologicalMapMsg, "/topological_map", self.cb_topo_map, qos_profile)
+    self.sub_topo_map = self.create_subscription(String, "/topological_map_2", self.cb_topo_map, qos_profile)
 
     self.logger.info("Waiting for topological map...")
     while self.topo_map is None:
@@ -55,9 +54,7 @@ class TopologicalLocalisation(Node):
 
   def run(self):
     # """ Create a multithreaded executor spinning this node and all agents """
-    self.et = Thread(target=self.thread_executor.spin())
-    self.et.start()
-    self.et.join()
+    self.thread_executor.spin()
 
   def handler_set_JSD_upper_bound(self, request, response):
     for a in self.agents:
@@ -124,7 +121,7 @@ class TopologicalLocalisation(Node):
   def cb_topo_map(self, msg):
     """Receive the Topological Map."""
     self.topo_map = TopologicalMap(msg)
-    self.logger.info("Received topomap")
+    self.logger.info("Received topomap2")
 
 
 def main(args=None):

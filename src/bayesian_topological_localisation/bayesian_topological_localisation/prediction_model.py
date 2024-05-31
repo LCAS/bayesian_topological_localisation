@@ -1,19 +1,17 @@
 #!/usr/bin/env python3
 
 import numpy as np
+from bayesian_topological_localisation.topological_map import TopologicalMap
 
 
 class PredictionModel:
 
-  CTMC = 0 # continuous-time markov chain
-  IDENTITY = 1 # remain in the same node
+  CTMC = 0      # continuous-time markov chain
+  IDENTITY = 1  # remain in the same node
 
-  def __init__(self, pred_type=0, node_coords=[], node_diffs2D=[], node_distances=[], connected_nodes=[], unconnected_distance=5.0):
+  def __init__(self, pred_type=0, topo_map=TopologicalMap(), unconnected_distance=5.0):
     self.pred_type = pred_type
-    self.node_coords = np.array(node_coords)
-    self.node_diffs2D = np.array(node_diffs2D)
-    self.node_distances = np.array(node_distances)
-    self.connected_nodes = connected_nodes
+    self.topo_map = topo_map
     self.unconnected_distance = unconnected_distance
 
   # always predict the node it's already in
@@ -30,29 +28,28 @@ class PredictionModel:
     # _nodes = []
 
     # check if speed and next node have same direction
-    same_direction_mask = np.any(particle.vel * self.node_diffs2D[particle.node, self.connected_nodes[particle.node]] >= 0, axis=1)
-    pos_connected_nodes = self.connected_nodes[particle.node][same_direction_mask]
-    # neg_connected_nodes = self.connected_nodes[particle.node][~same_direction_mask]
+    same_direction_mask = np.any(particle.vel * self.topo_map.node_diffs2D[particle.node, self.topo_map.connected_nodes[particle.node]] >= 0, axis=1)
+    pos_connected_nodes = self.topo_map.connected_nodes[particle.node][same_direction_mask]
+    # neg_connected_nodes = self.topo_map.connected_nodes[particle.node][~same_direction_mask]
 
     # project speed vector on the edges toward successive nodes
-    diffs_norm = np.dot(self.node_diffs2D[particle.node, pos_connected_nodes], 
-                        self.node_diffs2D[particle.node, pos_connected_nodes].transpose()).diagonal()
-    speed_proj = (np.dot(self.node_diffs2D[particle.node, pos_connected_nodes], particle.vel) /
-                  diffs_norm).reshape((-1, 1)) * self.node_diffs2D[particle.node, pos_connected_nodes]
+    diffs_norm = np.dot(self.topo_map.node_diffs2D[particle.node, pos_connected_nodes], 
+                        self.topo_map.node_diffs2D[particle.node, pos_connected_nodes].transpose()).diagonal()
+    speed_proj = (np.dot(self.topo_map.node_diffs2D[particle.node, pos_connected_nodes], particle.vel) /
+                  diffs_norm).reshape((-1, 1)) * self.topo_map.node_diffs2D[particle.node, pos_connected_nodes]
     speed_proj = np.sqrt(np.dot(speed_proj, speed_proj.transpose()).diagonal())
 
     # probability of moving to trans_node
     # compute lambda considering speed and distance between nodes
     # lambda = (0.6931 * speed) / dist, so that p(transitioning) = 0.5 when the position is halfway between current and next particle.node
     # because exp(-lambda * tau) = 0.5 => ln(0.5) = -0.6931 = - lambda * tau, where tau is time in the particle.node
-    lambda_p = np.log(0.5) * speed_proj / \
-      self.node_distances[particle.node][pos_connected_nodes]
+    lambda_p = np.log(0.5) * speed_proj / self.topo_map.node_distances[particle.node][pos_connected_nodes]
 
     w_p = speed_proj
     sum_w_p = max(0.01, np.sum(w_p))
 
     # this is te bernoully probabily of jumping/not-jumping
-    bern_p_jump = np.sum(w_p * (1.0 - np.exp(_new_life * lambda_p)))/ sum_w_p
+    bern_p_jump = np.sum(w_p * (1.0 - np.exp(_new_life * lambda_p))) / sum_w_p
 
     # now first we decide if we jump:
     if np.random.random() < bern_p_jump:
@@ -88,10 +85,9 @@ class PredictionModel:
     # _new_node = _nodes[_new_node_idx]
 
     ## part three: update vel
-    _this_step_vel = _jump_prob * (self.node_coords[_new_node] - self.node_coords[particle.node]) / max(
+    _this_step_vel = _jump_prob * (self.topo_map.node_coords[_new_node] - self.topo_map.node_coords[particle.node]) / max(
       0.1, timestamp_secs - particle.last_time_secs)  # max(0.01, timestamp_secs - particle.last_time_secs)
-    _new_vel = particle.vel + (_this_step_vel -  # np.clip(_this_step_vel, -1, 1) -
-               particle.vel) / particle.n_steps_vel
+    _new_vel = particle.vel + (_this_step_vel - particle.vel) / particle.n_steps_vel
 
     # print("From {} to {} with prob {} vel {}({}) time {}".format(particle.node, _new_node,
                                 #  _prob[_new_node_idx], _this_step_vel, _new_vel, timestamp_secs - particle.last_time_secs))

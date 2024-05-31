@@ -27,7 +27,7 @@ from visualization_msgs.msg import Marker, MarkerArray
 class LocalisationAgent(Node):
   # """A single agent, e.g. a picker or a robot, to be localised"""
 
-  def __init__(self, name="unknown", n_particles=300, do_prediction=True, prediction_rate=0.5, initial_spread_policy=0, prediction_speed_decay=1.0, topo_map=TopologicalMap()):
+  def __init__(self, name="unknown", n_particles=300, do_prediction=True, prediction_rate=10, initial_spread_policy=0, topo_map=TopologicalMap()):
     super().__init__("bayesian_topological_localisation_agent_{:s}".format(name))
     self.logger = self.get_logger()
     self.logger.info("Creating new localisation agent: {:s}".format(name))
@@ -38,7 +38,6 @@ class LocalisationAgent(Node):
     self.do_prediction = do_prediction
     self.prediction_rate = prediction_rate
     self.initial_spread_policy = initial_spread_policy
-    self.prediction_speed_decay = prediction_speed_decay
     self.topo_map = topo_map
 
     # Publishers
@@ -97,25 +96,17 @@ class LocalisationAgent(Node):
 
     # Initialize the prediction model
     self.pm = PredictionModel(pred_type=PredictionModel.CTMC,
-                              node_coords=self.topo_map.node_coords,
-                              node_diffs2D=self.topo_map.node_diffs2D,
-                              node_distances=self.topo_map.node_distances,
-                              connected_nodes=self.topo_map.connected_nodes)
+                              topo_map=self.topo_map)
 
     # Default values for pf
     default_reinit_jsd_threshold = 0.975
-    default_unconnected_jump_threshold = 0.6
+    default_unconnected_jump_threshold = 0.8
 
     # Initialize a new instance of particle_filter
-    self.tpf = TopologicalParticleFilter(num=n_particles,
+    self.tpf = TopologicalParticleFilter(n_of_ptcl=n_particles,
                                          prediction_model=self.pm,
                                          initial_spread_policy=initial_spread_policy,
-                                         prediction_speed_decay=prediction_speed_decay,
-                                         node_coords=self.topo_map.node_coords,
-                                         node_distances=self.topo_map.node_distances,
-                                         connected_nodes=self.topo_map.connected_nodes,
-                                         node_diffs2D=self.topo_map.node_diffs2D,
-                                         node_names=self.topo_map.node_names,
+                                         topo_map=self.topo_map,
                                          reinit_jsd_threshold=default_reinit_jsd_threshold,
                                          unconnected_jump_threshold=default_unconnected_jump_threshold)
 
@@ -259,6 +250,7 @@ class LocalisationAgent(Node):
        np.isfinite(request.pose.pose.pose.position.y) and \
        np.isfinite(request.pose.pose.covariance[0]) and \
        np.isfinite(request.pose.pose.covariance[7]):
+      #print("Received pose update")
 
       p_estimated, particles = self.tpf.receive_pose_obs(request.pose.pose.pose.position.x,
                                                          request.pose.pose.pose.position.y,
@@ -368,15 +360,10 @@ class LocalisationAgent(Node):
 
   def handler_do_stateless_update(self, request, response):
     # create a new PF and assign the prior distribution to start up with
-    _tpf = TopologicalParticleFilter(num=self.n_particles,
+    _tpf = TopologicalParticleFilter(n_of_ptcl=self.n_particles,
                                      prediction_model=self.pm,
                                      initial_spread_policy=self.initial_spread_policy,
-                                     prediction_speed_decay=self.prediction_speed_decay,
-                                     node_coords=self.topo_map.node_coords,
-                                     node_distances=self.topo_map.node_distances,
-                                     connected_nodes=self.topo_map.connected_nodes,
-                                     node_diffs2D=self.topo_map.node_diffs2D,
-                                     node_names=self.topo_map.node_names)
+                                     topo_map=self.topo_map,)
     _tpf.print_debug = False
     if len(request.likelihood.nodes) == len(request.likelihood.values) and \
         len(request.prior.nodes) == len(request.prior.values):
