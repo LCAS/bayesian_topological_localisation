@@ -42,4 +42,4 @@ WORKDIR /home/ros/ros_ws
 
 RUN /bin/bash -c "source /opt/ros/humble/setup.bash; colcon build"
 
-CMD [ "bash", "-c", "source /home/ros/ros_ws/install/setup.bash; ros2 run bayesian_topological_localisation localisation_node.py" ]
+CMD [ "bash", "-c", "source /home/ros/ros_ws/install/setup.bash; ros2 launch bayesian_topological_localisation bayesian_localisation_launch.py" ]
