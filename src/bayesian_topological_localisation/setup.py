@@ -1,4 +1,6 @@
 from setuptools import setup
+import os
+from glob import glob
 
 package_name = 'bayesian_topological_localisation'
 
@@ -7,9 +9,9 @@ setup(
     version='3.0.4',
     packages=[package_name],
     data_files=[
-        ('share/ament_index/resource_index/packages',
-            ['resource/' + package_name]),
+        ('share/ament_index/resource_index/packages', ['resource/' + package_name]),
         ('share/' + package_name, ['package.xml']),
+        (os.path.join('share', package_name, 'launch'), glob(os.path.join('launch', '*launch.[pxy][yma]*')))
     ],
     install_requires=['sympy>=1.5.1'],
     zip_safe=True,
@@ -20,7 +22,8 @@ setup(
     tests_require=['pytest'],
     entry_points={
         'console_scripts': [
-            'localisation_node.py = bayesian_topological_localisation.localisation_node:main'
+            'localisation_node.py = bayesian_topological_localisation.localisation_node:main',
+            'tpf_car_handler.py = bayesian_topological_localisation.tpf_car_handler:main'
         ],
     },
 
