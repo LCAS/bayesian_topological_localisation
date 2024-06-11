@@ -111,9 +111,13 @@ class TPFCARHandler(Node):
         self.client_futures.append(future)
 
 
-if __name__ == '__main__':
-  rclpy.init()
+def main(args=None):
+  rclpy.init(args=args)
   tpf_car_handler = TPFCARHandler()
   tpf_car_handler.spin()
   tpf_car_handler.destroy_node()
   rclpy.shutdown()
+
+
+if __name__ == '__main__':
+  main()
