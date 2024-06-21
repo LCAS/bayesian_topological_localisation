@@ -8,6 +8,7 @@ import rclpy
 
 from bayesian_topological_localisation.particle import Particle
 from bayesian_topological_localisation.topological_map import TopologicalMap
+from bayesian_topological_localisation.prediction_model import PredictionModel
 
 FOLLOW_OBS = 0      # use the distribution of the first observation
 SPREAD_UNIFORM = 1  # equally distributed along all nodes
@@ -23,12 +24,13 @@ DEFAULT_REINIT_JSD_THRESHOLD = 0.90
 
 class TopologicalParticleFilter():
 
-  def __init__(self, n_of_ptcl, prediction_model, initial_spread_policy, topo_map=TopologicalMap(),
+  def __init__(self, n_of_ptcl, initial_spread_policy, topo_map=TopologicalMap(),
                reinit_jsd_threshold=DEFAULT_REINIT_JSD_THRESHOLD, unconnected_jump_threshold=DEFAULT_UNCONNECTED_JUMP_THRESHOLD):
     self.n_of_ptcl = n_of_ptcl
-    self.prediction_model = prediction_model
     self.initial_spread_policy = initial_spread_policy
     self.topo_map = topo_map
+    self.pm = PredictionModel(pred_type=PredictionModel.CTMC,
+                              topo_map=self.topo_map)
 
     # current particles
     self.particles = [None] * self.n_of_ptcl
@@ -169,8 +171,7 @@ class TopologicalParticleFilter():
 
       p = self.particles[particle_idx]
 
-      _new_p = self.prediction_model.predict(particle=p,
-                                             timestamp_secs=timestamp_secs)
+      _new_p = self.pm.predict(particle=p, timestamp_secs=timestamp_secs)
 
       self.predicted_particles[particle_idx] = _new_p
 
@@ -376,7 +377,6 @@ class TopologicalParticleFilter():
     """Factory function that produces a copy of the current object"""
     # create a new PF object
     copy_obj = TopologicalParticleFilter(num=self.n_of_ptcl,
-                                         prediction_model=self.prediction_model,
                                          initial_spread_policy=self.initial_spread_policy,
                                          topo_map=self.topo_map)
 

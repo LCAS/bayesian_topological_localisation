@@ -53,7 +53,7 @@ class TopologicalLocalisation(Node):
     self.logger.info("DONE")
 
   def run(self):
-    # """ Create a multithreaded executor spinning this node and all agents """
+    # """ Create an executor spinning this node and all agents """
     self.thread_executor.spin()
 
   def handler_set_JSD_upper_bound(self, request, response):

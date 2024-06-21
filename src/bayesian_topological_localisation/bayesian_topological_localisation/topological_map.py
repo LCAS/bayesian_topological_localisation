@@ -63,10 +63,36 @@ class TopologicalMap():
 
     # Create an empty map
     else:
+      self.node_names = np.array([])
+      self.node_coords = np.array([])
       self.node_diffs2D = np.array([])
       self.node_distances = np.array([])
       self.connected_nodes = np.array([])
-      self.node_names = np.array([])
-      self.node_coords = np.array([])
       self.node_rows = np.array([])
       self.node_tunnels = np.array([])
+
+  def restrict(self, row=-1, tunnel=-1):
+    # Restrict by row
+    if row != -1:
+      idcs = np.where(self.node_rows == row)[0]
+      self.node_names = self.node_names[idcs]
+      self.node_coords = self.node_coords[idcs]
+      self.node_diffs2D = self.node_diffs2D[np.ix_(idcs, idcs)]
+      self.node_distances = self.node_distances[np.ix_(idcs, idcs)]
+      self.connected_nodes = [cn for idx, cn in enumerate(self.connected_nodes) if idx in idcs]
+      self.connected_nodes = [np.array([np.where(idcs == cn)[0][0] for cn in cns if cn in idcs]) for cns in self.connected_nodes]
+      self.node_tunnels = self.node_tunnels[idcs]
+      self.node_rows = self.node_rows[idcs]
+
+    # Restrict by tunnel
+    if tunnel!= -1:
+      idcs = np.where(self.node_tunnels == tunnel)[0]
+      self.node_names = self.node_names[idcs]
+      self.node_coords = self.node_coords[idcs]
+      self.node_diffs2D = self.node_diffs2D[np.ix_(idcs, idcs)]
+      self.node_distances = self.node_distances[np.ix_(idcs, idcs)]
+      self.connected_nodes = [cn for idx, cn in enumerate(self.connected_nodes) if idx in idcs]
+      self.connected_nodes = [np.array([np.where(idcs == cn)[0][0] for cn in cns if cn in idcs]) for cns in self.connected_nodes]
+      self.node_rows = self.node_rows[idcs]
+      self.node_tunnels = self.node_tunnels[idcs]
+      

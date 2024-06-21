@@ -11,7 +11,6 @@ import threading
 
 # Bayesian Topological Localisation
 from bayesian_topological_localisation.particle_filter import TopologicalParticleFilter
-from bayesian_topological_localisation.prediction_model import PredictionModel
 from bayesian_topological_localisation.topological_map import TopologicalMap
 from bayesian_topological_localisation_msgs.srv import UpdatePoseObservation, \
                                                        UpdateLikelihoodObservation,  UpdatePriorLikelihoodObservation, \
@@ -27,7 +26,14 @@ from visualization_msgs.msg import Marker, MarkerArray
 class LocalisationAgent(Node):
   # """A single agent, e.g. a picker or a robot, to be localised"""
 
-  def __init__(self, name="unknown", n_particles=300, do_prediction=True, prediction_rate=10, initial_spread_policy=0, topo_map=TopologicalMap()):
+  def __init__(self, 
+               name="unknown", 
+               n_particles=300, 
+               do_prediction=True, 
+               prediction_rate=10, 
+               initial_spread_policy=0, 
+               row=-1,
+               topo_map=TopologicalMap()):
     super().__init__("bayesian_topological_localisation_agent_{:s}".format(name))
     self.logger = self.get_logger()
     self.logger.info("Creating new localisation agent: {:s}".format(name))
@@ -39,6 +45,7 @@ class LocalisationAgent(Node):
     self.prediction_rate = prediction_rate
     self.initial_spread_policy = initial_spread_policy
     self.topo_map = topo_map
+    self.row = row
 
     # Publishers
     #self.pub_loc = None
@@ -94,17 +101,12 @@ class LocalisationAgent(Node):
       msg_stateless_particle_marker.id = i
       self.msg_stateless_particle_marker_array.markers.append(msg_stateless_particle_marker)
 
-    # Initialize the prediction model
-    self.pm = PredictionModel(pred_type=PredictionModel.CTMC,
-                              topo_map=self.topo_map)
-
     # Default values for pf
     default_reinit_jsd_threshold = 0.975
     default_unconnected_jump_threshold = 0.8
 
     # Initialize a new instance of particle_filter
     self.tpf = TopologicalParticleFilter(n_of_ptcl=n_particles,
-                                         prediction_model=self.pm,
                                          initial_spread_policy=initial_spread_policy,
                                          topo_map=self.topo_map,
                                          reinit_jsd_threshold=default_reinit_jsd_threshold,
@@ -361,7 +363,6 @@ class LocalisationAgent(Node):
   def handler_do_stateless_update(self, request, response):
     # create a new PF and assign the prior distribution to start up with
     _tpf = TopologicalParticleFilter(n_of_ptcl=self.n_particles,
-                                     prediction_model=self.pm,
                                      initial_spread_policy=self.initial_spread_policy,
                                      topo_map=self.topo_map,)
     _tpf.print_debug = False

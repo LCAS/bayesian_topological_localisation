@@ -9,7 +9,6 @@ def generate_launch_description():
       executable="map_manager2.py",
       arguments=["/home/ros/ros_ws/src/bayesian_topological_localisation/config/riseholme_tagged.tmap2.yaml"],
       name="topological_map_manager"
-
     ),
     Node(
       package="topological_navigation",
