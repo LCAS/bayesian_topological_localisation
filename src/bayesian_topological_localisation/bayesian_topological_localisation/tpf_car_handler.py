@@ -34,13 +34,13 @@ class Agent():
     req.pose.pose.pose.position.y = y
     req.pose.pose.pose.position.z = 0.2
     req.identifying = True
-    future = self.cli_restr_map.call_async(req)
+    future = self.cli_pose_obs.call_async(req)
     return future
 
   def restrict_map(self, row):
     req = RestrictMap.Request()
     req.row = row
-    future = self.cli_pose_obs.call_async(req)
+    future = self.cli_restr_map.call_async(req)
     return future
 
 
