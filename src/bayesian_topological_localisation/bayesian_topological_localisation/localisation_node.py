@@ -85,7 +85,7 @@ class TopologicalLocalisation(Node):
                               n_particles=request.n_particles, 
                               do_prediction=request.do_prediction, 
                               prediction_rate=request.prediction_rate, 
-                              topo_map=self.topo_map)
+                              topo_map=self.topo_map.deepcopy())
 
     # Add an agent to the threading execution
     self.agents.append(agent)

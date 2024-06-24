@@ -41,12 +41,12 @@ set(msg_files
 set(srv_files
   "srv/LocaliseAgent.srv"
   "srv/Predict.srv"
+  "srv/RestrictMap.srv"
   "srv/SetFloat64.srv"
   "srv/StopLocalise.srv"
   "srv/UpdateLikelihoodObservation.srv"
   "srv/UpdatePoseObservation.srv"
   "srv/UpdatePriorLikelihoodObservation.srv"
-
 )
 
 

@@ -7,7 +7,7 @@ from std_msgs.msg import String
 import json
 import pyproj
 
-from bayesian_topological_localisation_msgs.srv import LocaliseAgent, UpdatePoseObservation
+from bayesian_topological_localisation_msgs.srv import LocaliseAgent, UpdatePoseObservation, RestrictMap
 
 
 class Agent():
@@ -18,6 +18,8 @@ class Agent():
                                                srv_name="/bayesian_topological_localisation/localise_agent")
     self.cli_pose_obs = nh.create_client(srv_type=UpdatePoseObservation,
                                          srv_name="/bayesian_topological_localisation_agent_{0}/update_pose_obs".format(self.name))
+    self.cli_restr_map = nh.create_client(srv_type=RestrictMap,
+                                          srv_name="/bayesian_topological_localisation_{0}/restrict_map".format(self.name))
 
   def localise(self, prediction_rate=10.0):
     req = LocaliseAgent.Request()
@@ -26,12 +28,18 @@ class Agent():
     future = self.cli_register_agent.call_async(req)
     return future
 
-  def send_gps(self, x, y, row=None):
+  def send_gps(self, x, y):
     req = UpdatePoseObservation.Request()
     req.pose.pose.pose.position.x = x
     req.pose.pose.pose.position.y = y
     req.pose.pose.pose.position.z = 0.2
     req.identifying = True
+    future = self.cli_restr_map.call_async(req)
+    return future
+
+  def restrict_map(self, row):
+    req = RestrictMap.Request()
+    req.row = row
     future = self.cli_pose_obs.call_async(req)
     return future
 
@@ -109,6 +117,10 @@ class TPFCARHandler(Node):
         self.logger.info("Agent \'{}\' lat/lon: {:.6f}, {:.6f} | x/y: {:.6f}, {:.6f}".format(data["user"], lat, lon, x, y))
         future = agent.send_gps(x, y)
         self.client_futures.append(future)
+
+        if data["row"] != '':
+          future = agent.restrict_map(int(data["row"]))
+          self.client_futures.append(future)
 
 
 def main(args=None):

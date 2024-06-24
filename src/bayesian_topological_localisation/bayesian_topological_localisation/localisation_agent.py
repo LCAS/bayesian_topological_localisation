@@ -126,10 +126,11 @@ class LocalisationAgent(Node):
     self.sub_likelihood_observation = self.create_subscription(LikelihoodObservation, "~/likelihood_obs", self.cb_likelihood_obs, qos_profile)
 
     # Services
-    self.srv_update_pose_observation = self.create_service(UpdatePoseObservation, "~/update_pose_obs", self.handler_update_pose),
-    self.srv_update_likelihood_observation = self.create_service(UpdateLikelihoodObservation, "~/update_likelihood_obs", self.handler_update_likelihood),
-    self.srv_predict_stateless = self.create_service(Predict, "~/predict_stateless", self.handler_do_stateless_prediction),
+    self.srv_update_pose_observation = self.create_service(UpdatePoseObservation, "~/update_pose_obs", self.handler_update_pose)
+    self.srv_update_likelihood_observation = self.create_service(UpdateLikelihoodObservation, "~/update_likelihood_obs", self.handler_update_likelihood)
+    self.srv_predict_stateless = self.create_service(Predict, "~/predict_stateless", self.handler_do_stateless_prediction)
     self.srv_update_stateless = self.create_service(UpdatePriorLikelihoodObservation, "~/update_stateless", self.handler_do_stateless_update)
+    self.srv_update_stateless = self.create_service(UpdatePriorLikelihoodObservation, "~/restrict_map", self.handler_restrict_map)
 
     # Timers
     self.tmr_predict = self.create_timer(1.0 / prediction_rate, self.cb_predict)
@@ -409,3 +410,13 @@ class LocalisationAgent(Node):
       self.logger.warn(
           "Nodes array and values array sizes do not match {} != {}/{} != {}, discarding prior/likelihood observation".format(len(request.prior.nodes), len(request.prior.values), len(request.likelihood.nodes), len(request.likelihood.values)))
 
+  def handler_restrict_map(self, request, response):
+    response.success = False
+
+    if request.row != -1:
+      self.topo_map.restrict(row=request.row)
+
+    if request.tunnel != -1:
+      self.topo_map.restrict(tunnel=request.tunnel)
+
+    return response
