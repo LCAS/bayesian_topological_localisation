@@ -16,6 +16,10 @@ class Agent():
     self.name = name
     self.cli_register_agent = nh.create_client(srv_type=LocaliseAgent,
                                                srv_name="/bayesian_topological_localisation/localise_agent")
+    while not self.cli_register_agent.wait_for_service(timeout_sec=1.0):
+      nh.logger.info("Waiting for service /bayesian_topological_localisation/localise_agent...")
+      rclpy.spin_once()
+      
     self.cli_pose_obs = nh.create_client(srv_type=UpdatePoseObservation,
                                          srv_name="/{0}/update_pose_obs".format(self.name))
     self.cli_restr_map = nh.create_client(srv_type=RestrictMap,
