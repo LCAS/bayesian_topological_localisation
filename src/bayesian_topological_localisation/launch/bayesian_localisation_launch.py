@@ -12,6 +12,6 @@ def generate_launch_description():
     Node(
       package="bayesian_topological_localisation",
       executable="localisation_node.py",
-      name="bayes_topological_localisation"
+      name="bayesian_topological_localisation"
     )
   ])
