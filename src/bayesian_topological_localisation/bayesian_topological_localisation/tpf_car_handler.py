@@ -17,9 +17,9 @@ class Agent():
     self.cli_register_agent = nh.create_client(srv_type=LocaliseAgent,
                                                srv_name="/bayesian_topological_localisation/localise_agent")
     self.cli_pose_obs = nh.create_client(srv_type=UpdatePoseObservation,
-                                         srv_name="/bayesian_topological_localisation_agent_{0}/update_pose_obs".format(self.name))
+                                         srv_name="/{0}/update_pose_obs".format(self.name))
     self.cli_restr_map = nh.create_client(srv_type=RestrictMap,
-                                          srv_name="/bayesian_topological_localisation_{0}/restrict_map".format(self.name))
+                                          srv_name="/{0}/restrict_map".format(self.name))
 
   def localise(self, prediction_rate=10.0):
     req = LocaliseAgent.Request()

@@ -34,7 +34,7 @@ class LocalisationAgent(Node):
                initial_spread_policy=0, 
                row=-1,
                topo_map=TopologicalMap()):
-    super().__init__("bayesian_topological_localisation_agent_{:s}".format(name))
+    super().__init__("{:s}".format(name))
     self.logger = self.get_logger()
     self.logger.info("Creating new localisation agent: {:s}".format(name))
 
@@ -113,7 +113,7 @@ class LocalisationAgent(Node):
                                          unconnected_jump_threshold=default_unconnected_jump_threshold)
 
     # Publishers
-    self.pub_cn = self.create_publisher(String, "~/estimated_node", 10)
+    self.pub_cn = self.create_publisher(String, "~/closest_node", 10)
     self.pub_pd = self.create_publisher(DistributionStamped, "~/current_prob_dist", 10)
     self.pub_ptcs = self.create_publisher(ParticlesState, "~/particles_states", 10)
     self.pub_cnviz = self.create_publisher(Marker, "~/estimated_node_viz", 10)
@@ -413,10 +413,14 @@ class LocalisationAgent(Node):
   def handler_restrict_map(self, request, response):
     response.success = False
 
+    print(self.topo_map.node_names)
     if request.row != -1:
       self.topo_map.restrict(row=request.row)
+      response.success = True
 
     if request.tunnel != -1:
       self.topo_map.restrict(tunnel=request.tunnel)
+      response.success = True
 
+    print(self.topo_map.node_names)
     return response
