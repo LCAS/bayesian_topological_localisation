@@ -14,7 +14,7 @@ from bayesian_topological_localisation.particle_filter import TopologicalParticl
 from bayesian_topological_localisation.topological_map import TopologicalMap
 from bayesian_topological_localisation_msgs.srv import UpdatePoseObservation, \
                                                        UpdateLikelihoodObservation,  UpdatePriorLikelihoodObservation, \
-                                                       Predict, SetFloat64
+                                                       Predict, RestrictMap, SetFloat64
 
 # Interfaces
 from bayesian_topological_localisation_msgs.msg import DistributionStamped, PoseObservation, LikelihoodObservation, ParticlesState
@@ -130,7 +130,7 @@ class LocalisationAgent(Node):
     self.srv_update_likelihood_observation = self.create_service(UpdateLikelihoodObservation, "~/update_likelihood_obs", self.handler_update_likelihood)
     self.srv_predict_stateless = self.create_service(Predict, "~/predict_stateless", self.handler_do_stateless_prediction)
     self.srv_update_stateless = self.create_service(UpdatePriorLikelihoodObservation, "~/update_stateless", self.handler_do_stateless_update)
-    self.srv_update_stateless = self.create_service(UpdatePriorLikelihoodObservation, "~/restrict_map", self.handler_restrict_map)
+    self.srv_restrict_map = self.create_service(RestrictMap, "~/restrict_map", self.handler_restrict_map)
 
     # Timers
     self.tmr_predict = self.create_timer(1.0 / prediction_rate, self.cb_predict)
@@ -413,7 +413,6 @@ class LocalisationAgent(Node):
   def handler_restrict_map(self, request, response):
     response.success = False
 
-    print(self.topo_map.node_names)
     if request.row != -1:
       self.topo_map.restrict(row=request.row)
       response.success = True
@@ -422,5 +421,4 @@ class LocalisationAgent(Node):
       self.topo_map.restrict(tunnel=request.tunnel)
       response.success = True
 
-    print(self.topo_map.node_names)
     return response
