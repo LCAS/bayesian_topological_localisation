@@ -7,19 +7,16 @@ from rclpy.qos import QoSDurabilityPolicy, QoSProfile
 
 # Python
 import numpy as np
-import threading
 
 # Bayesian Topological Localisation
 from bayesian_topological_localisation.particle_filter import TopologicalParticleFilter
-from bayesian_topological_localisation.topological_map import TopologicalMap
 from bayesian_topological_localisation_msgs.srv import UpdatePoseObservation, \
                                                        UpdateLikelihoodObservation,  UpdatePriorLikelihoodObservation, \
-                                                       Predict, RestrictMap, SetFloat64
+                                                       Predict, RestrictMap
 
 # Interfaces
 from bayesian_topological_localisation_msgs.msg import DistributionStamped, PoseObservation, LikelihoodObservation, ParticlesState
 from std_msgs.msg import String
-from topological_navigation_msgs.msg import TopologicalMap as TopologicalMapMsg
 from visualization_msgs.msg import Marker, MarkerArray
 
 
@@ -27,13 +24,11 @@ class LocalisationAgent(Node):
   # """A single agent, e.g. a picker or a robot, to be localised"""
 
   def __init__(self, 
-               name="unknown", 
+               name,
+               topo_map,
                n_particles=300, 
                do_prediction=True, 
-               prediction_rate=10, 
-               initial_spread_policy=0, 
-               row=-1,
-               topo_map=TopologicalMap()):
+               prediction_rate=1.0):
     super().__init__("{:s}".format(name))
     self.logger = self.get_logger()
     self.logger.info("Creating new localisation agent: {:s}".format(name))
@@ -43,13 +38,7 @@ class LocalisationAgent(Node):
     self.n_particles = n_particles
     self.do_prediction = do_prediction
     self.prediction_rate = prediction_rate
-    self.initial_spread_policy = initial_spread_policy
     self.topo_map = topo_map
-    self.row = row
-
-    # Publishers
-    #self.pub_loc = None
-    #self.pub_vis = None
 
     # Initialise messages
     self.msg_node_marker = Marker()
@@ -107,7 +96,6 @@ class LocalisationAgent(Node):
 
     # Initialize a new instance of particle_filter
     self.tpf = TopologicalParticleFilter(n_of_ptcl=n_particles,
-                                         initial_spread_policy=initial_spread_policy,
                                          topo_map=self.topo_map,
                                          reinit_jsd_threshold=default_reinit_jsd_threshold,
                                          unconnected_jump_threshold=default_unconnected_jump_threshold)
@@ -147,26 +135,26 @@ class LocalisationAgent(Node):
     nodes = [p.node for p in particles]
     nodes, counts = np.unique(nodes, return_counts=True)
 
-    probs = np.zeros((self.topo_map.node_names.shape[0]))
+    probs = np.zeros((self.topo_map.node_names().shape[0]))
     probs[nodes] = counts.astype(float) / np.sum(counts)
 
     if timestamp is None:
       timestamp = self.get_clock().now()
 
     msg_pd.header.stamp = timestamp.to_msg()
-    msg_pd.nodes = self.topo_map.node_names.tolist()
+    msg_pd.nodes = self.topo_map.node_names().tolist()
     msg_pd.values = np.copy(probs).tolist()
 
     return msg_pd
 
   def prepare_cn_msg(self, node):
     msg_str = String()
-    msg_str.data = self.topo_map.node_names[node]
+    msg_str.data = self.topo_map.node_names()[node]
     return msg_str
 
   def prepare_ptcs_msg(self, particles):
     msg_particles = ParticlesState()
-    msg_particles.nodes = [self.topo_map.node_names[p.node] for p in particles]
+    msg_particles.nodes = [self.topo_map.node_names()[p.node] for p in particles]
     msg_particles.vels_x = [p.vel[0] for p in particles]
     msg_particles.vels_y = [p.vel[1] for p in particles]
     msg_particles.times = [p.life for p in particles]
@@ -181,12 +169,12 @@ class LocalisationAgent(Node):
     # publish viz stuff
     for i, p in enumerate(particles):
       self.msg_particle_marker_array.markers[i].header.stamp = self.get_clock().now().to_msg()
-      self.msg_particle_marker_array.markers[i].pose.position.x = self.topo_map.node_coords[p.node][0] + \
+      self.msg_particle_marker_array.markers[i].pose.position.x = self.topo_map.node_coords()[p.node][0] + \
         self.msg_particle_marker_array.markers[i].scale.x * np.random.rand()
-      self.msg_particle_marker_array.markers[i].pose.position.y = self.topo_map.node_coords[p.node][1] + \
+      self.msg_particle_marker_array.markers[i].pose.position.y = self.topo_map.node_coords()[p.node][1] + \
         self.msg_particle_marker_array.markers[i].scale.y * np.random.rand()
-    self.msg_node_marker.pose.position.x = self.topo_map.node_coords[node][0]
-    self.msg_node_marker.pose.position.y = self.topo_map.node_coords[node][1]
+    self.msg_node_marker.pose.position.x = self.topo_map.node_coords()[node][0]
+    self.msg_node_marker.pose.position.y = self.topo_map.node_coords()[node][1]
 
     self.pub_cnviz.publish(self.msg_node_marker)
     self.pub_parviz.publish(self.msg_particle_marker_array)
@@ -196,9 +184,9 @@ class LocalisationAgent(Node):
     # publish viz stuff
     for i, p in enumerate(particles):
       self.msg_stateless_particle_marker_array.markers[i].header.stamp = self.get_clock().now().to_msg()
-      self.msg_stateless_particle_marker_array.markers[i].pose.position.x = self.topo_map.node_coords[p.node][0] + \
+      self.msg_stateless_particle_marker_array.markers[i].pose.position.x = self.topo_map.node_coords()[p.node][0] + \
         self.msg_stateless_particle_marker_array.markers[i].scale.x * np.random.rand()
-      self.msg_stateless_particle_marker_array.markers[i].pose.position.y = self.topo_map.node_coords[p.node][1] + \
+      self.msg_stateless_particle_marker_array.markers[i].pose.position.y = self.topo_map.node_coords()[p.node][1] + \
         self.msg_stateless_particle_marker_array.markers[i].scale.y * np.random.rand()
 
     self.pub_staparviz.publish(self.msg_stateless_particle_marker_array)
@@ -227,7 +215,7 @@ class LocalisationAgent(Node):
   def cb_likelihood_obs(self, msg):
     if len(msg.likelihood.nodes) == len(msg.likelihood.values):
       try:
-        nodes = [np.where(self.topo_map.node_names == nname)[0][0] for nname in msg.likelihood.nodes]
+        nodes = [np.where(self.topo_map.node_names() == nname)[0][0] for nname in msg.likelihood.nodes]
       except IndexError:
         self.logger.warn(
             "Received non-admissible node name {}, likelihood discarded".format(msg.likelihood.nodes))
@@ -253,7 +241,6 @@ class LocalisationAgent(Node):
        np.isfinite(request.pose.pose.pose.position.y) and \
        np.isfinite(request.pose.pose.covariance[0]) and \
        np.isfinite(request.pose.pose.covariance[7]):
-      #print("Received pose update")
 
       p_estimated, particles = self.tpf.receive_pose_obs(request.pose.pose.pose.position.x,
                                                          request.pose.pose.pose.position.y,
@@ -278,7 +265,7 @@ class LocalisationAgent(Node):
   def handler_update_likelihood(self, request, response):
     if len(request.likelihood.nodes) == len(request.likelihood.values):
       try:
-        nodes = [np.where(self.topo_map.node_names == nname)[0][0] for nname in request.likelihood.nodes]
+        nodes = [np.where(self.topo_map.node_names() == nname)[0][0] for nname in request.likelihood.nodes]
       except IndexError:
         self.logger.warn("Received non-admissible node name {}, likelihood discarded".format(request.likelihood.nodes))
       else:
@@ -364,14 +351,13 @@ class LocalisationAgent(Node):
   def handler_do_stateless_update(self, request, response):
     # create a new PF and assign the prior distribution to start up with
     _tpf = TopologicalParticleFilter(n_of_ptcl=self.n_particles,
-                                     initial_spread_policy=self.initial_spread_policy,
-                                     topo_map=self.topo_map,)
+                                     topo_map=self.topo_map)
     _tpf.print_debug = False
     if len(request.likelihood.nodes) == len(request.likelihood.values) and \
         len(request.prior.nodes) == len(request.prior.values):
       try:
-        lkl_nodes = [np.where(self.topo_map.node_names == nname)[0][0] for nname in request.likelihood.nodes]
-        pr_nodes = [np.where(self.topo_map.node_names == nname)[0][0] for nname in request.prior.nodes]
+        lkl_nodes = [np.where(self.topo_map.node_names() == nname)[0][0] for nname in request.likelihood.nodes]
+        pr_nodes = [np.where(self.topo_map.node_names() == nname)[0][0] for nname in request.prior.nodes]
       except IndexError:
         self.logger.warn(
           "Received non-admissible node name {}/{}, prior/likelihood discarded".format(request.prior.nodes, request.likelihood.nodes))
@@ -413,6 +399,10 @@ class LocalisationAgent(Node):
   def handler_restrict_map(self, request, response):
     response.success = False
 
+    # Stop execution
+    self.do_prediction = False
+
+    # Update map
     if request.row != -1:
       self.topo_map.restrict(row=request.row)
       response.success = True
@@ -420,5 +410,11 @@ class LocalisationAgent(Node):
     if request.tunnel != -1:
       self.topo_map.restrict(tunnel=request.tunnel)
       response.success = True
+
+    # Reinitialize the TPF
+    self.tpf.reinitialize_particles(self.get_clock().now().nanoseconds / 1e9)
+
+    # Resume execution
+    self.do_prediction = True
 
     return response

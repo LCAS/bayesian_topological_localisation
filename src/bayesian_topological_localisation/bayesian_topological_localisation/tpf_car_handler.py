@@ -12,20 +12,21 @@ from bayesian_topological_localisation_msgs.srv import LocaliseAgent, UpdatePose
 
 class Agent():
 
-  def __init__(self, nh, name):
+  def __init__(self, nh, name, row=-1):
     self.name = name
+    self.row = row
     self.cli_register_agent = nh.create_client(srv_type=LocaliseAgent,
                                                srv_name="/bayesian_topological_localisation/localise_agent")
     while not self.cli_register_agent.wait_for_service(timeout_sec=1.0):
       nh.logger.info("Waiting for service /bayesian_topological_localisation/localise_agent...")
-      rclpy.spin_once()
+      rclpy.spin_once(nh)
       
     self.cli_pose_obs = nh.create_client(srv_type=UpdatePoseObservation,
                                          srv_name="/{0}/update_pose_obs".format(self.name))
     self.cli_restr_map = nh.create_client(srv_type=RestrictMap,
                                           srv_name="/{0}/restrict_map".format(self.name))
 
-  def localise(self, prediction_rate=10.0):
+  def localise(self, prediction_rate=1.0):
     req = LocaliseAgent.Request()
     req.name = self.name
     req.prediction_rate = prediction_rate
@@ -115,6 +116,8 @@ class TPFCARHandler(Node):
       if agent.name == data["user"]:
         lat = data["lat"]
         lon = data["long"]
+        if lat == -1 and lon == -1:
+          return
         trolley_loc = self.proj(lon, lat)
         x = trolley_loc[0] - self.map_zero[0]
         y = trolley_loc[1] - self.map_zero[1]
@@ -122,9 +125,14 @@ class TPFCARHandler(Node):
         future = agent.send_gps(x, y)
         self.client_futures.append(future)
 
+        # Restrict to row if not already restricted
         if data["row"] != '':
-          future = agent.restrict_map(int(data["row"]))
-          self.client_futures.append(future)
+          row = int(data["row"])
+          if agent.row != row:
+            self.logger.info("Restricting to row {0}".format(row))
+            future = agent.restrict_map(row)
+            agent.row = row
+            self.client_futures.append(future)
 
 
 def main(args=None):

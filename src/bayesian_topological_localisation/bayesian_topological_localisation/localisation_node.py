@@ -4,19 +4,11 @@ import rclpy
 from rclpy.node import Node
 from rclpy.qos import QoSDurabilityPolicy, QoSProfile
 import time
-import numpy as np
 import copy
 
-from bayesian_topological_localisation.particle_filter import TopologicalParticleFilter
-from bayesian_topological_localisation.prediction_model import PredictionModel
 from bayesian_topological_localisation.localisation_agent import LocalisationAgent
 from bayesian_topological_localisation.topological_map import TopologicalMap
-from bayesian_topological_localisation_msgs.srv import LocaliseAgent, StopLocalise, UpdatePoseObservation, \
-                                                       UpdateLikelihoodObservation,  UpdatePriorLikelihoodObservation, \
-                                                       Predict, SetFloat64
-from bayesian_topological_localisation_msgs.msg import DistributionStamped, PoseObservation, LikelihoodObservation, ParticlesState
-from visualization_msgs.msg import Marker, MarkerArray
-from topological_navigation_msgs.msg import TopologicalMap as TopologicalMapMsg
+from bayesian_topological_localisation_msgs.srv import LocaliseAgent, StopLocalise, SetFloat64
 from std_msgs.msg import String
 
 
@@ -83,10 +75,10 @@ class TopologicalLocalisation(Node):
 
     # Create a localisation agent
     agent = LocalisationAgent(name=request.name, 
+                              topo_map=copy.deepcopy(self.topo_map),
                               n_particles=request.n_particles, 
                               do_prediction=request.do_prediction, 
-                              prediction_rate=request.prediction_rate, 
-                              topo_map=copy.deepcopy(self.topo_map))
+                              prediction_rate=request.prediction_rate)
 
     # Add an agent to the threading execution
     self.agents.append(agent)

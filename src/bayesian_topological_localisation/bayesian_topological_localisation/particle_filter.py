@@ -1,13 +1,8 @@
 #!/usr/bin/env python3
 
-import threading
-
 import numpy as np
 
-import rclpy
-
 from bayesian_topological_localisation.particle import Particle
-from bayesian_topological_localisation.topological_map import TopologicalMap
 from bayesian_topological_localisation.prediction_model import PredictionModel
 
 FOLLOW_OBS = 0      # use the distribution of the first observation
@@ -24,10 +19,9 @@ DEFAULT_REINIT_JSD_THRESHOLD = 0.90
 
 class TopologicalParticleFilter():
 
-  def __init__(self, n_of_ptcl, initial_spread_policy, topo_map=TopologicalMap(),
+  def __init__(self, n_of_ptcl, topo_map,
                reinit_jsd_threshold=DEFAULT_REINIT_JSD_THRESHOLD, unconnected_jump_threshold=DEFAULT_UNCONNECTED_JUMP_THRESHOLD):
     self.n_of_ptcl = n_of_ptcl
-    self.initial_spread_policy = initial_spread_policy
     self.topo_map = topo_map
     self.pm = PredictionModel(pred_type=PredictionModel.CTMC,
                               topo_map=self.topo_map)
@@ -51,14 +45,12 @@ class TopologicalParticleFilter():
     self.reinit_jsd_threshold = reinit_jsd_threshold
     self.unconnected_jump_threshold = unconnected_jump_threshold
 
-    #self.lock = threading.Lock()
-
   def _expand_distribution(self, prob, nodes):
     if type(nodes) == np.ndarray:
       _nodes = nodes.tolist()
     else:
       _nodes = nodes
-    new_prob = np.zeros(self.topo_map.node_coords.shape[0])
+    new_prob = np.zeros(self.topo_map.node_coords().shape[0])
     for i in range(new_prob.shape[0]):
       try:
         _idx = _nodes.index(i)
@@ -86,15 +78,15 @@ class TopologicalParticleFilter():
     cov_y = np.max([cov_y, 0.2])
     cov_M = np.matrix([[cov_x, 0.], [0., cov_y]])    # cov matrix
     det_M = cov_x * cov_y                           # det cov matrix
-    diffs2D = np.matrix(self.topo_map.node_coords[nodes] - mean)
+    diffs2D = np.matrix(self.topo_map.node_coords()[nodes] - mean)
     up = np.exp(- 0.5 * (diffs2D * cov_M.I * diffs2D.T).diagonal())
     probs = np.array(up / np.sqrt((2*np.pi)**2 * det_M))
     return self._normalize(probs.reshape((-1)))
 
   def _initialize_wt_pose(self, obs_x, obs_y, cov_x, cov_y, timestamp_secs):
-    nodes_prob = self._normal_pdf(obs_x, obs_y, cov_x, cov_y, range(self.topo_map.node_coords.shape[0]))
+    nodes_prob = self._normal_pdf(obs_x, obs_y, cov_x, cov_y, range(self.topo_map.node_coords().shape[0]))
     nodes_prob = self._normalize(nodes_prob)
-    _particles_nodes = np.random.choice(range(self.topo_map.node_coords.shape[0]), self.n_of_ptcl, p=nodes_prob)
+    _particles_nodes = np.random.choice(range(self.topo_map.node_coords().shape[0]), self.n_of_ptcl, p=nodes_prob)
     # sample velocity (x,y components) as gaussian sample with mean 0.0 and a covariance
     _particles_vels = np.random.normal(0.0, 0.05, (self.n_of_ptcl, 2))
     # sample time (seconds) as exponential sample 
@@ -132,8 +124,8 @@ class TopologicalParticleFilter():
   def _initialize_uniform(self, timestamp_secs):
     prob = 1.0 / self.n_of_ptcl
     self._initialize_wt_likelihood(
-      np.arange(self.topo_map.node_coords.shape[0]), 
-      np.ones((self.topo_map.node_coords.shape[0])) * prob,
+      np.arange(self.topo_map.node_coords().shape[0]), 
+      np.ones((self.topo_map.node_coords().shape[0])) * prob,
       timestamp_secs
     )
 
@@ -186,7 +178,7 @@ class TopologicalParticleFilter():
     nodes = nodes.tolist()
 
     # weight pose
-    _all_nodes = np.arange(self.topo_map.node_coords.shape[0])
+    _all_nodes = np.arange(self.topo_map.node_coords().shape[0])
     prob_dist = self._normal_pdf(obs_x, obs_y, cov_x, cov_y, _all_nodes)
 
     self.W = np.zeros((self.n_of_ptcl))
@@ -249,9 +241,9 @@ class TopologicalParticleFilter():
     # noise to the node, bernoulli
     if np.random.random() < 0.001:
       if self.only_connected:
-        closeby_nodes = self.topo_map.connected_nodes[particle.node]
+        closeby_nodes = self.topo_map.connected_nodes()[particle.node]
       else:
-        closeby_nodes = np.where((self.topo_map.node_distances[particle.node]<=3))[0]
+        closeby_nodes = np.where((self.topo_map.node_distances()[particle.node]<=3))[0]
       particle.node = np.random.choice(closeby_nodes)
     
     particle.vel += np.random.normal(0.0, 0.0005)
@@ -373,11 +365,13 @@ class TopologicalParticleFilter():
 
     return p_estimate, particles
 
+  def reinitialize_particles(self, timestamp_secs):
+    self._initialize_uniform(timestamp_secs)
+
   def copy(self):
     """Factory function that produces a copy of the current object"""
     # create a new PF object
     copy_obj = TopologicalParticleFilter(num=self.n_of_ptcl,
-                                         initial_spread_policy=self.initial_spread_policy,
                                          topo_map=self.topo_map)
 
     # get all the class variables
