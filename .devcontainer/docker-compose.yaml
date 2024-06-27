@@ -1,48 +1,49 @@
 
 version: '3'
 services:
-  bayes_topological_localiser:
+  bayesian_topological_localisation:
     build:
       dockerfile: .devcontainer/Dockerfile
       context: ..
     env_file: ./env
     environment:
       - WEBSOCKET_URL=ws://car:8128/
-    networks:
-      - ros_network
-      - car_network
+#    networks:
+#      - ros_network
+#      - car_network
+    network_mode: host
     volumes:
       - ./cyclonedds.xml:/etc/cyclonedds/cyclonedds.xml:ro
     #command: ["python", "bayes_topological_localiser.py"]
     
-  car:
-    image: lcas.lincoln.ac.uk/lcas/car:latest
-    env_file: ./env
-    ports:
-      - 8127
-      - 8128
-    environment:
-      # We are tkaking the Google Maps API key form a .env file (or set it before docker-compose up)
-      PYTHONUNBUFFERED: 1
-      #GMAPS_API: ${GMAPS_API:-define_your_API_key_in_a_dot_env_file}
-      #CAR_ROWS: ${CAR_ROWS:-1 2 3 4 5 6 7 8 9 10 11 12}
-      #WEBSOCKET_URL: ${WEBSOCKET_URL:-wss://lcas.lincoln.ac.uk/rasberry/ws}
-      CAR_LOG_DIR: "/tmp"
-    networks:
-      - car_network
+#  car:
+#    image: lcas.lincoln.ac.uk/lcas/car:latest
+#    env_file: ./env
+#    ports:
+#      - 8127:8127
+#      - 8128:8128
+#    environment:
+#      # We are tkaking the Google Maps API key form a .env file (or set it before docker-compose up)
+#      PYTHONUNBUFFERED: 1
+#      #GMAPS_API: ${GMAPS_API:-define_your_API_key_in_a_dot_env_file}
+#      #CAR_ROWS: ${CAR_ROWS:-1 2 3 4 5 6 7 8 9 10 11 12}
+#      #WEBSOCKET_URL: ${WEBSOCKET_URL:-wss://lcas.lincoln.ac.uk/rasberry/ws}
+#      CAR_LOG_DIR: "/tmp"
+#    networks:
+#      - car_network
 
-  nginx:
-    image: nginx:latest
-    ports:
-      - 8827:80
-    volumes:
-      - ./nginx.conf:/etc/nginx/nginx.conf
-    depends_on:
-      - car
-    links:
-      - car
-    networks:
-      - car_network
+#  nginx:
+#    image: nginx:latest
+#    ports:
+#      - 8827:80
+#    volumes:
+#      - ./nginx.conf:/etc/nginx/nginx.conf
+#    depends_on:
+#      - car
+#    links:
+#      - car
+#    networks:
+#      - car_network
 
   zenoh:
     image: eclipse/zenoh-bridge-ros2dds:latest
@@ -51,14 +52,15 @@ services:
       - ROS_DOMAIN_ID=0
       - ROS_DISTRO=humble
     ports:
-      - 7447
-      - 8888
+      - 7447:7447
+      - 8888:8888
     volumes:
       - ./cyclonedds.xml:/etc/cyclonedds/cyclonedds.xml:ro
     command: "-l tcp/0.0.0.0:7447 -r 0.0.0.0:8888 -d 0 -m peer"
-    networks:
-      - ros_network
-      - zenoh_network
+#    networks:
+#      - ros_network
+#      - zenoh_network
+    network_mode: host
 
   ros_bridge:
     build:
@@ -67,27 +69,31 @@ services:
     environment:
       - CYCLONEDDS_URI=file:///etc/cyclonedds/cyclonedds.xml
       - ROS_DOMAIN_ID=0
-      - ROS_MASTER_URI=http://localhost:11311
+      - ROS_MASTER_URI=http://localhost:11311/
+    ports:
+      - 11311:11311
     user: ros
     volumes:
       - ./cyclonedds.xml:/etc/cyclonedds/cyclonedds.xml:ro
+      - ./rosbridge.conf:/rosbridge.conf
     command: "/bin/bash -c 'sleep 5; ros2 run ros1_bridge dynamic_bridge --bridge-all-topics'"
-    networks:
-      - ros_network
+#    networks:
+#      - ros_network
+    network_mode: host
 
-networks:
-  ros_network:
-    driver: bridge
-  car_network:
-    driver: bridge
-    driver_opts:
-      # prefix the zenoh network with a different name the "eth", to avoid conflicts with the ROS2 network
-      # and to ensure the ROS DDS discovery works correctly only on the interface defined in cyclonedds.xml
-      com.docker.network.container_iface_prefix: "car"
-  zenoh_network:
-    driver: bridge
-    driver_opts:
-      # prefix the zenoh network with a different name the "eth", to avoid conflicts with the ROS2 network
-      # and to ensure the ROS DDS discovery works correctly only on the interface defined in cyclonedds.xml
-      com.docker.network.container_iface_prefix: "zenoh"
-  
+#networks:
+#  ros_network:
+#    driver: bridge
+#  car_network:
+#    driver: bridge
+#    driver_opts:
+#      # prefix the zenoh network with a different name the "eth", to avoid conflicts with the ROS2 network
+#      # and to ensure the ROS DDS discovery works correctly only on the interface defined in cyclonedds.xml
+#      com.docker.network.container_iface_prefix: "car"
+#  zenoh_network:
+#    driver: bridge
+#    driver_opts:
+#      # prefix the zenoh network with a different name the "eth", to avoid conflicts with the ROS2 network
+#      # and to ensure the ROS DDS discovery works correctly only on the interface defined in cyclonedds.xml
+#      com.docker.network.container_iface_prefix: "zenoh"
+#  
