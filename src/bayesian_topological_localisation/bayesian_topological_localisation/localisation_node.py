@@ -13,7 +13,7 @@ from std_msgs.msg import String
 
 
 class TopologicalLocalisation(Node):
-  # """."""
+  # """ The meta-node managing all agents to be localised """
 
   def __init__(self):
     super().__init__("bayesian_topological_localisation")
@@ -27,7 +27,7 @@ class TopologicalLocalisation(Node):
 
     # Subscribe with transient QoS so previously published topomap gets loaded
     qos_profile = QoSProfile(depth=1, durability=QoSDurabilityPolicy.TRANSIENT_LOCAL)
-    self.sub_topo_map = self.create_subscription(String, "/topological_map_2", self.cb_topo_map, qos_profile)
+    self.sub_topo_map = self.create_subscription(String, "/restricted_topological_map/short_topological_map_2", self.cb_topo_map, qos_profile)
 
     self.logger.info("Waiting for topological map...")
     while self.topo_map is None:
