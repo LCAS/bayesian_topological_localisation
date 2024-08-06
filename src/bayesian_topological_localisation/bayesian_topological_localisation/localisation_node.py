@@ -11,11 +11,14 @@ from bayesian_topological_localisation.topological_map import TopologicalMap
 from bayesian_topological_localisation_msgs.srv import LocaliseAgent, StopLocalise, SetFloat64
 from std_msgs.msg import String
 
+# ROS1/ROS2-bridge used?
+USE_ROSBRIDGE = True
+
 
 class TopologicalLocalisation(Node):
   # """ The meta-node managing all agents to be localised """
 
-  def __init__(self):
+  def __init__(self, topo_map_topic="/restricted_topological_map/short_topological_map_2"):
     super().__init__("bayesian_topological_localisation")
     self.logger = self.get_logger()
 
@@ -26,8 +29,15 @@ class TopologicalLocalisation(Node):
     self.topo_map = None
 
     # Subscribe with transient QoS so previously published topomap gets loaded
-    qos_profile = QoSProfile(depth=1, durability=QoSDurabilityPolicy.TRANSIENT_LOCAL)
-    self.sub_topo_map = self.create_subscription(String, "/restricted_topological_map/short_topological_map_2", self.cb_topo_map, qos_profile)
+    ## This will be set to VOLATILE for compatibility with the ROS1/ROS2-bridge.
+    ## In a ROS2-environment this needs to be set to TRANSIENT_LOCAL
+    if USE_ROSBRIDGE:
+      self.logger.info("Expecting topomap2 on VOLATILE topic: " + topo_map_topic)
+      qos_profile = QoSProfile(depth=1, durability=QoSDurabilityPolicy.VOLATILE)
+    else:
+      self.logger.info("Expecting topomap2 on TRANSIENT_LOCAL topic: " + topo_map_topic)
+      qos_profile = QoSProfile(depth=1, durability=QoSDurabilityPolicy.TRANSIENT_LOCAL)
+    self.sub_topo_map = self.create_subscription(String, topo_map_topic, self.cb_topo_map, qos_profile)
 
     self.logger.info("Waiting for topological map...")
     while self.topo_map is None:
