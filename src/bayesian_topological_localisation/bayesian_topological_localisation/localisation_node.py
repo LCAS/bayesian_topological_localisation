@@ -18,7 +18,7 @@ USE_ROSBRIDGE = True
 class TopologicalLocalisation(Node):
   # """ The meta-node managing all agents to be localised """
 
-  def __init__(self, topo_map_topic="/restricted_topological_map/short_topological_map_2"):
+  def __init__(self, topo_map_topic="/restricted_topological_map_generators/short_topological_map_2"):
     super().__init__("bayesian_topological_localisation")
     self.logger = self.get_logger()
 
